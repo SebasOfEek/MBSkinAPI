@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MBSkinAPI - Interactive Quick Start Guide</title>
+    
+    <!-- MBSkinAPI from CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinStyles.css">
+    
+    <style>
+        /* ===== BASE STYLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 40px 0;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            color: #58a6ff;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .header p {
+            color: #8b949e;
+            font-size: 1.1em;
+        }
+
+        /* ===== CONTAINER ===== */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* ===== SECTIONS ===== */
+        .section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            margin-bottom: 30px;
+        }
+
+        .section-header {
+            background: #21262d;
+            padding: 20px 25px;
+            border-bottom: 1px solid #30363d;
+        }
+
+        .section-header h2 {
+            color: #f0f6fc;
+            font-size: 1.3em;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .section-body {
+            padding: 25px;
+        }
+
+        /* ===== STEP BY STEP GUIDE ===== */
+        .step {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: #238636;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            flex-shrink: 0;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-content h3 {
+            color: #f0f6fc;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .step-content p {
+            color: #8b949e;
+            margin-bottom: 15px;
+        }
+
+        /* ===== CODE BLOCKS ===== */
+        .code-block {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 0;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .code-header {
+            background: #21262d;
+            padding: 10px 15px;
+            border-bottom: 1px solid #30363d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .code-header span {
+            color: #8b949e;
+            font-size: 0.9em;
+        }
+
+        .copy-btn {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: #2ea043;
+        }
+
+        .copy-btn.copied {
+            background: #1f6feb;
+        }
+
+        pre {
+            margin: 0;
+            padding: 20px;
+            overflow-x: auto;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        code {
+            color: #c9d1d9;
+        }
+
+        .code-comment {
+            color: #8b949e;
+        }
+
+        .code-tag {
+            color: #7ee787;
+        }
+
+        .code-attr {
+            color: #79c0ff;
+        }
+
+        .code-string {
+            color: #a5d6ff;
+        }
+
+        .code-keyword {
+            color: #ff7b72;
+        }
+
+        .code-function {
+            color: #d2a8ff;
+        }
+
+        /* ===== INTERACTIVE DEMO ===== */
+        .demo-area {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .demo-status {
+            display: inline-block;
+            padding: 8px 16px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+
+        .demo-status.ready {
+            background: #238636;
+            color: white;
+        }
+
+        .demo-status.error {
+            background: #da3633;
+            color: white;
+        }
+
+        .btn {
+            background: #238636;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: #2ea043;
+        }
+
+        .btn:disabled {
+            background: #30363d;
+            color: #8b949e;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #1f6feb;
+        }
+
+        .btn-secondary:hover {
+            background: #388bfd;
+        }
+
+        .btn-danger {
+            background: #da3633;
+        }
+
+        .btn-danger:hover {
+            background: #f85149;
+        }
+
+        /* ===== RESULT BOX ===== */
+        .result-box {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            padding: 20px;
+            margin-top: 20px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.9em;
+            min-height: 100px;
+        }
+
+        .result-box.success {
+            border-color: #238636;
+            background: rgba(35, 134, 54, 0.1);
+        }
+
+        .result-box.error {
+            border-color: #da3633;
+            background: rgba(218, 54, 51, 0.1);
+        }
+
+        /* ===== THEME SELECTOR ===== */
+        .theme-options {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .theme-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .theme-option:hover {
+            border-color: #58a6ff;
+        }
+
+        .theme-option.active {
+            border-color: #238636;
+            background: rgba(35, 134, 54, 0.1);
+        }
+
+        .theme-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+        }
+
+        /* ===== FEATURES GRID ===== */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            padding: 20px;
+        }
+
+        .feature-card h4 {
+            color: #58a6ff;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .feature-card p {
+            color: #8b949e;
+            font-size: 0.9em;
+        }
+
+        /* ===== NOTIFICATION ===== */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #238636;
+            color: white;
+            padding: 15px 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 10000;
+            max-width: 350px;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.error {
+            background: #da3633;
+        }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            background: #161b22;
+            border-top: 1px solid #30363d;
+            padding: 30px;
+            text-align: center;
+            color: #8b949e;
+            font-size: 0.9em;
+        }
+
+        .footer a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .step {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .step-number {
+                width: 35px;
+                height: 35px;
+            }
+
+            .theme-options {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>MBSkinAPI</h1>
+        <p>Interactive Quick Start Guide - Get Started in 3 Steps</p>
+    </header>
+
+    <div class="container">
+        <!-- Section 1: Step by Step Setup -->
+        <section class="section">
+            <div class="section-header">
+                <h2>Getting Started</h2>
+            </div>
+            <div class="section-body">
+                <!-- Step 1 -->
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Add the CSS Stylesheet</h3>
+                        <p>Copy this line into the <code>&lt;head&gt;</code> section of your HTML file:</p>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>HTML</span>
+                                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            </div>
+                            <pre><code><span class="code-tag">&lt;link</span> <span class="code-attr">rel</span>=<span class="code-string">"stylesheet"</span> <span class="code-attr">href</span>=<span class="code-string">"https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinStyles.css"</span><span class="code-tag">&gt;</span></code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Add the JavaScript Bundle</h3>
+                        <p>Copy this line before the closing <code>&lt;/body&gt;</code> tag:</p>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>HTML</span>
+                                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            </div>
+                            <pre><code><span class="code-tag">&lt;script</span> <span class="code-attr">src</span>=<span class="code-string">"https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinAPI.bundle.min.js"</span><span class="code-tag">&gt;&lt;/script&gt;</span></code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Initialize the API</h3>
+                        <p>Add this JavaScript code to create your skin explorer:</p>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span>JavaScript</span>
+                                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                            </div>
+                            <pre><code><span class="code-comment">// Initialize the skin explorer</span>
+<span class="code-keyword">const</span> <span class="code-function">skinAPI</span> = <span class="code-keyword">new</span> <span class="code-function">MBSkinAPI</span>({
+    <span class="code-attr">onSkinSelect</span>: <span class="code-keyword">function</span>(skin) {
+        <span class="code-function">console</span>.<span class="code-function">log</span>(<span class="code-string">'Selected skin:'</span>, skin);
+        <span class="code-comment">// Your custom logic here</span>
+    }
+});
+
+<span class="code-comment">// Open the explorer</span>
+<span class="code-function">skinAPI</span>.<span class="code-function">show</span>();</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Live Demo -->
+        <section class="section">
+            <div class="section-header">
+                <h2>Live Demo</h2>
+            </div>
+            <div class="section-body">
+                <div class="demo-area">
+                    <div class="demo-status ready" id="demo-status">
+                        MBSkinAPI Loaded and Ready
+                    </div>
+                    <p style="color: #8b949e; margin-bottom: 20px;">
+                        Test the API directly. Click the button below to open the skin explorer.
+                    </p>
+                    <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                        <button class="btn" id="btn-open-explorer">
+                            Open Skin Explorer
+                        </button>
+                        <button class="btn btn-secondary" id="btn-search-demo">
+                            Search Demo
+                        </button>
+                        <button class="btn btn-danger" id="btn-reset-demo">
+                            Reset
+                        </button>
+                    </div>
+                    <div class="result-box" id="demo-result">
+                        Click "Open Skin Explorer" to select a skin...
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Themes -->
+        <section class="section">
+            <div class="section-header">
+                <h2>Available Themes</h2>
+            </div>
+            <div class="section-body">
+                <p style="color: #8b949e; margin-bottom: 20px;">
+                    Click a theme to apply it to the demo above:
+                </p>
+                <div class="theme-options">
+                    <div class="theme-option active" data-theme="dark" onclick="setTheme('dark')">
+                        <div class="theme-color" style="background: #121212;"></div>
+                        <span>Dark</span>
+                    </div>
+                    <div class="theme-option" data-theme="light" onclick="setTheme('light')">
+                        <div class="theme-color" style="background: #f5f5f5;"></div>
+                        <span>Light</span>
+                    </div>
+                    <div class="theme-option" data-theme="blue" onclick="setTheme('blue')">
+                        <div class="theme-color" style="background: #2196f3;"></div>
+                        <span>Blue</span>
+                    </div>
+                    <div class="theme-option" data-theme="purple" onclick="setTheme('purple')">
+                        <div class="theme-color" style="background: #9c27b0;"></div>
+                        <span>Purple</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Features -->
+        <section class="section">
+            <div class="section-header">
+                <h2>Key Features</h2>
+            </div>
+            <div class="section-body">
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <h4>CDN Ready</h4>
+                        <p>No build process required. Works immediately via jsDelivr CDN.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Zero Dependencies</h4>
+                        <p>Standalone library with no external dependencies required.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Search & Filter</h4>
+                        <p>Built-in search functionality with filtering by name or author.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Customizable</h4>
+                        <p>Multiple themes and custom styling options available.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Caching</h4>
+                        <p>Intelligent caching system for better performance.</p>
+                    </div>
+                    <div class="feature-card">
+                        <h4>Responsive</h4>
+                        <p>Works on desktop, tablet, and mobile devices.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: CDN Information -->
+        <section class="section">
+            <div class="section-header">
+                <h2>CDN URLs</h2>
+            </div>
+            <div class="section-body">
+                <p style="color: #8b949e; margin-bottom: 20px;">
+                    Use these URLs in your project. Replace <code>@main</code> with a specific version tag for production.
+                </p>
+                <div class="code-block">
+                    <div class="code-header">
+                        <span>Production URLs</span>
+                        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                    </div>
+                    <pre><code><span class="code-comment">&lt;!-- CSS --&gt;</span>
+<span class="code-tag">&lt;link</span> <span class="code-attr">rel</span>=<span class="code-string">"stylesheet"</span> <span class="code-attr">href</span>=<span class="code-string">"https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinStyles.css"</span><span class="code-tag">&gt;</span>
+
+<span class="code-comment">&lt;!-- JavaScript --&gt;</span>
+<span class="code-tag">&lt;script</span> <span class="code-attr">src</span>=<span class="code-string">"https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinAPI.bundle.js"</span><span class="code-tag">&gt;&lt;/script&gt;</span></code></pre>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>
+            MBSkinAPI v2.0.0 - Created by SebasOfEek | 
+            <a href="https://github.com/SebasOfEek/MBSkinAPI" target="_blank">GitHub Repository</a>
+        </p>
+    </footer>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <!-- MBSkinAPI from CDN -->
+    <script src="https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinAPI.bundle.min.js"></script>
+
+    <script>
+        // Variables
+        let skinAPI;
+        let currentSkin = null;
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeAPI();
+            setupEventListeners();
+        });
+
+        // Initialize the API
+        function initializeAPI() {
+            try {
+                skinAPI = new MBSkinAPI({
+                    onSkinSelect: function(skin) {
+                        handleSkinSelection(skin);
+                    },
+                    onError: function(error) {
+                        showNotification('Error: ' + error, 'error');
+                        updateDemoStatus('error');
+                    }
+                });
+                
+                updateDemoStatus('ready');
+                console.log('MBSkinAPI initialized successfully');
+            } catch (error) {
+                console.error('Error initializing MBSkinAPI:', error);
+                updateDemoStatus('error');
+                showNotification('Failed to initialize API', 'error');
+            }
+        }
+
+        // Update demo status indicator
+        function updateDemoStatus(status) {
+            const statusEl = document.getElementById('demo-status');
+            if (status === 'ready') {
+                statusEl.textContent = 'MBSkinAPI Loaded and Ready';
+                statusEl.className = 'demo-status ready';
+            } else if (status === 'error') {
+                statusEl.textContent = 'Error Loading API';
+                statusEl.className = 'demo-status error';
+            }
+        }
+
+        // Handle skin selection
+        function handleSkinSelection(skin) {
+            currentSkin = skin;
+            
+            const resultBox = document.getElementById('demo-result');
+            resultBox.className = 'result-box success';
+            resultBox.innerHTML = `
+                <strong style="color: #7ee787;">Skin Selected Successfully</strong><br><br>
+                <strong>ID:</strong> ${skin.id}<br>
+                <strong>Name:</strong> ${skin.name}<br>
+                <strong>Author:</strong> ${skin.author}<br>
+                <strong>Date:</strong> ${skin.date || 'N/A'}
+            `;
+            
+            showNotification(`Selected: ${skin.name} by ${skin.author}`);
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Open explorer
+            document.getElementById('btn-open-explorer').addEventListener('click', function() {
+                if (skinAPI) {
+                    skinAPI.show();
+                } else {
+                    showNotification('API not available', 'error');
+                }
+            });
+
+            // Search demo
+            document.getElementById('btn-search-demo').addEventListener('click', function() {
+                if (skinAPI) {
+                    skinAPI.search('hero');
+                    skinAPI.show();
+                }
+            });
+
+            // Reset
+            document.getElementById('btn-reset-demo').addEventListener('click', function() {
+                currentSkin = null;
+                const resultBox = document.getElementById('demo-result');
+                resultBox.className = 'result-box';
+                resultBox.textContent = 'Click "Open Skin Explorer" to select a skin...';
+                
+                if (skinAPI) {
+                    skinAPI.reset();
+                }
+                
+                showNotification('Reset complete');
+            });
+        }
+
+        // Set theme
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            
+            // Update active state
+            document.querySelectorAll('.theme-option').forEach(option => {
+                option.classList.remove('active');
+            });
+            document.querySelector(`[data-theme="${theme}"]`).classList.add('active');
+            
+            showNotification(`Theme changed to ${theme}`);
+        }
+
+        // Copy code functionality
+        function copyCode(button) {
+            const codeBlock = button.closest('.code-block').querySelector('code');
+            const text = codeBlock.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                button.textContent = 'Copied!';
+                button.classList.add('copied');
+                
+                setTimeout(() => {
+                    button.textContent = 'Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+                
+                showNotification('Code copied to clipboard');
+            }).catch(() => {
+                showNotification('Failed to copy', 'error');
+            });
+        }
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = 'notification show ' + (type === 'error' ? 'error' : '');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
