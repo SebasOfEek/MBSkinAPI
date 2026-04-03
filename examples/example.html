@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MBSkinAPI - Ejemplo Completo</title>
+    
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
+    <!-- Estilos del MBSkinAPI -->
+    <link rel="stylesheet" href="../src/style/MBSkinStyles.css">
+    
+    <!-- Estilos adicionales para el ejemplo -->
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.8;
+            font-size: 1.1em;
+        }
+        
+        .demo-section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .demo-section h2 {
+            margin-top: 0;
+            color: #00ff88;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .demo-section p {
+            margin-bottom: 20px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        .buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #00ff88, #00ccff);
+            color: #000;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(45deg, #ff4757, #ff6348);
+            color: white;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .input-group input, .input-group select {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 14px;
+        }
+        
+        .input-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.2);
+        }
+        
+        .result-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .theme-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .theme-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .theme-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .theme-btn.active {
+            border-color: white;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+        
+        .theme-dark { background: linear-gradient(45deg, #2c3e50, #34495e); }
+        .theme-light { background: linear-gradient(45deg, #ecf0f1, #bdc3c7); }
+        .theme-blue { background: linear-gradient(45deg, #3498db, #2980b9); }
+        .theme-purple { background: linear-gradient(45deg, #9b59b6, #8e44ad); }
+        .theme-green { background: linear-gradient(45deg, #27ae60, #229954); }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            margin: 0;
+            font-size: 24px;
+            color: #00ff88;
+        }
+        
+        .stat-card p {
+            margin: 5px 0 0 0;
+            opacity: 0.8;
+            font-size: 12px;
+        }
+        
+        .cdn-info {
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .cdn-info h3 {
+            color: #00ff88;
+            margin-top: 0;
+        }
+        
+        .cdn-info code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .buttons-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-gamepad"></i> MBSkinAPI</h1>
+            <p>Explorador completo de skins para MineBlocks - Demo interactiva</p>
+        </div>
+
+        <!-- Sección 1: Demo Básica -->
+        <div class="demo-section">
+            <h2><i class="fas fa-play"></i> Demo Básica</h2>
+            <p>La forma más sencilla de usar el API. Un solo botón para abrir el explorador de skins.</p>
+            
+            <div class="buttons-grid">
+                <button class="btn" id="basic-open">
+                    <i class="fas fa-external-link-alt"></i> 
+                    Abrir Explorador Básico
+                </button>
+                <button class="btn btn-secondary" id="basic-close">
+                    <i class="fas fa-times"></i> 
+                    Cerrar Explorador
+                </button>
+            </div>
+            
+            <div class="result-box" id="basic-result">
+                Esperando selección de skin...
+            </div>
+        </div>
+
+        <!-- Sección 2: Búsqueda y Filtros -->
+        <div class="demo-section">
+            <h2><i class="fas fa-search"></i> Búsqueda y Filtros</h2>
+            <p>Busca skins por nombre, autor o usa filtros avanzados.</p>
+            
+            <div class="input-group">
+                <input type="text" id="search-input" placeholder="Buscar skins por nombre...">
+                <button class="btn" id="search-btn">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+            </div>
+            
+            <div class="input-group">
+                <select id="filter-select">
+                    <option value="all">Todas las skins</option>
+                    <option value="name">Por nombre</option>
+                    <option value="author">Por autor</option>
+                </select>
+                <button class="btn btn-secondary" id="filter-btn">
+                    <i class="fas fa-filter"></i> Aplicar Filtro
+                </button>
+                <button class="btn btn-secondary" id="reset-btn">
+                    <i class="fas fa-undo"></i> Resetear
+                </button>
+            </div>
+            
+            <div class="buttons-grid">
+                <button class="btn" id="search-author">
+                    <i class="fas fa-user"></i> 
+                    Buscar por autor: SebasOfEek
+                </button>
+                <button class="btn" id="search-new">
+                    <i class="fas fa-clock"></i> 
+                    Ver skins nuevas
+                </button>
+            </div>
+        </div>
+
+        <!-- Sección 3: UI Integrada -->
+        <div class="demo-section">
+            <h2><i class="fas fa-desktop"></i> UI Integrada</h2>
+            <p>Explorador integrado directamente en la página (no es modal).</p>
+            
+            <div id="embedded-explorer" style="min-height: 400px; border-radius: 10px; overflow: hidden;">
+                <!-- El explorador se cargará aquí -->
+            </div>
+        </div>
+
+        <!-- Sección 4: Personalización -->
+        <div class="demo-section">
+            <h2><i class="fas fa-palette"></i> Personalización</h2>
+            <p>Cambia el tema y apariencia del explorador.</p>
+            
+            <div class="theme-selector">
+                <span>Temas:</span>
+                <div class="theme-btn theme-dark active" data-theme="dark" title="Tema Oscuro"></div>
+                <div class="theme-btn theme-light" data-theme="light" title="Tema Claro"></div>
+                <div class="theme-btn theme-blue" data-theme="blue" title="Tema Azul"></div>
+                <div class="theme-btn theme-purple" data-theme="purple" title="Tema Púrpura"></div>
+                <div class="theme-btn theme-green" data-theme="green" title="Tema Verde"></div>
+            </div>
+            
+            <div class="buttons-grid" style="margin-top: 20px;">
+                <button class="btn" id="custom-style">
+                    <i class="fas fa-paint-brush"></i> 
+                    Aplicar Estilo Personalizado
+                </button>
+                <button class="btn btn-secondary" id="reset-style">
+                    <i class="fas fa-undo"></i> 
+                    Resetear Estilos
+                </button>
+            </div>
+        </div>
+
+        <!-- Sección 5: Estadísticas -->
+        <div class="demo-section">
+            <h2><i class="fas fa-chart-bar"></i> Estadísticas y Estado</h2>
+            <p>Información sobre el estado del API y las skins cargadas.</p>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="total-skins">0</h3>
+                    <p>Total de Skins</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="cached-skins">0</h3>
+                    <p>Skins en Caché</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="selected-count">0</h3>
+                    <p>Selecciones</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="api-status">Listo</h3>
+                    <p>Estado API</p>
+                </div>
+            </div>
+            
+            <div class="buttons-grid" style="margin-top: 20px;">
+                <button class="btn btn-secondary" id="clear-cache">
+                    <i class="fas fa-trash"></i> 
+                    Limpiar Caché
+                </button>
+                <button class="btn btn-secondary" id="debug-info">
+                    <i class="fas fa-bug"></i> 
+                    Mostrar Debug
+                </button>
+                <button class="btn btn-danger" id="destroy-api">
+                    <i class="fas fa-bomb"></i> 
+                    Destruir API
+                </button>
+            </div>
+            
+            <div class="result-box" id="stats-result">
+                Haz clic en "Mostrar Debug" para ver información detallada...
+            </div>
+        </div>
+
+        <!-- Sección CDN -->
+        <div class="cdn-info">
+            <h3><i class="fas fa-cloud-download-alt"></i> ¿Cómo funciona el CDN?</h3>
+            <p>
+                El <strong>CDN (Content Delivery Network)</strong> es una forma de distribuir los archivos del API 
+                servidores rápidos alrededor del mundo. En lugar de descargar los archivos desde tu proyecto, 
+                los usuarios las descargan desde el CDN más cercano.
+            </p>
+            <p>
+                <strong>Ejemplo de uso con CDN:</strong><br>
+                <code>&lt;script src="https://cdn.jsdelivr.net/gh/tu-usuario/MBSkinAPI@main/dist/MBSkinAPI.bundle.min.js"&gt;&lt;/script&gt;</code>
+            </p>
+            <p>
+                <strong>URLs de GitHub para CDN:</strong><br>
+                • jsDelivr: <code>https://cdn.jsdelivr.net/gh/usuario/repo@rama/src/archivo.js</code><br>
+                • Statically: <code>https://cdn.statically.io/gh/usuario/repo/rama/src/archivo.js</code><br>
+                • GitHack: <code>https://rawcdn.githack.com/usuario/repo/rama/src/archivo.js</code>
+            </p>
+        </div>
+    </div>
+
+    <!-- Scripts del MBSkinAPI -->
+    <script src="../src/services/SkinService.js"></script>
+    <script src="../src/ui/SkinExplorerUI.js"></script>
+    <script src="../src/core/MBSkinAPI.js"></script>
+
+    <!-- Script del ejemplo -->
+    <script>
+        // Variables globales
+        let basicAPI;
+        let embeddedExplorer;
+        let selectedCount = 0;
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeBasicAPI();
+            initializeEmbeddedExplorer();
+            setupEventListeners();
+            updateStats();
+        });
+
+        // 1. Inicializar API Básica
+        function initializeBasicAPI() {
+            basicAPI = new MBSkinAPI({
+                onSkinSelect: function(skin) {
+                    selectedCount++;
+                    updateStats();
+                    
+                    const result = document.getElementById('basic-result');
+                    result.innerHTML = `
+                        <strong>✅ Skin Seleccionada:</strong><br>
+                        ID: ${skin.id}<br>
+                        Nombre: ${skin.name}<br>
+                        Autor: ${skin.author}<br>
+                        Fecha: ${skin.date || 'N/A'}<br>
+                        <br>
+                        <strong>URL de imagen:</strong><br>
+                        ${basicAPI.skinService.getSkinImageUrl(skin.id)}
+                    `;
+                    
+                    // Mostrar notificación
+                    showNotification(`Skin "${skin.name}" seleccionada!`, 'success');
+                },
+                onLoadStart: function() {
+                    document.getElementById('basic-result').innerHTML = '⏳ Cargando skins...';
+                },
+                onLoadComplete: function(skins) {
+                    updateStats();
+                    document.getElementById('basic-result').innerHTML = `✅ ${skins.length} skins cargadas`;
+                },
+                onError: function(error) {
+                    document.getElementById('basic-result').innerHTML = `❌ Error: ${error}`;
+                    showNotification('Error al cargar skins', 'error');
+                }
+            });
+        }
+
+        // 2. Inicializar Explorador Integrado
+        function initializeEmbeddedExplorer() {
+            const skinService = new SkinService();
+            const container = document.getElementById('embedded-explorer');
+            
+            embeddedExplorer = new SkinExplorerUI({
+                container: container,
+                skinService: skinService,
+                onSkinSelect: function(skin) {
+                    selectedCount++;
+                    updateStats();
+                    showNotification(`Skin seleccionada en UI integrada: ${skin.name}`, 'info');
+                }
+            });
+        }
+
+        // 3. Configurar Event Listeners
+        function setupEventListeners() {
+            // Botones básicos
+            document.getElementById('basic-open').addEventListener('click', () => {
+                basicAPI.show();
+            });
+
+            document.getElementById('basic-close').addEventListener('click', () => {
+                basicAPI.hide();
+            });
+
+            // Búsqueda
+            document.getElementById('search-btn').addEventListener('click', () => {
+                const query = document.getElementById('search-input').value;
+                if (query) {
+                    basicAPI.search(query);
+                    basicAPI.show();
+                }
+            });
+
+            document.getElementById('search-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('search-btn').click();
+                }
+            });
+
+            // Filtros
+            document.getElementById('filter-btn').addEventListener('click', () => {
+                const filter = document.getElementById('filter-select').value;
+                basicAPI.setFilter(filter);
+                basicAPI.show();
+            });
+
+            document.getElementById('reset-btn').addEventListener('click', () => {
+                basicAPI.reset();
+                document.getElementById('search-input').value = '';
+                document.getElementById('filter-select').value = 'all';
+            });
+
+            // Búsquedas rápidas
+            document.getElementById('search-author').addEventListener('click', () => {
+                basicAPI.search('SebasOfEek');
+                basicAPI.setFilter('author');
+                basicAPI.show();
+            });
+
+            document.getElementById('search-new').addEventListener('click', () => {
+                basicAPI.reset();
+                basicAPI.show();
+            });
+
+            // Temas
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const theme = this.dataset.theme;
+                    document.documentElement.setAttribute('data-theme', theme);
+                    
+                    // Actualizar botón activo
+                    document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    showNotification(`Tema cambiado a: ${theme}`, 'info');
+                });
+            });
+
+            // Estilos personalizados
+            document.getElementById('custom-style').addEventListener('click', () => {
+                basicAPI.applyCustomStyles({
+                    '.mb-skin-item': 'border-radius: 20px; transform: scale(1.05);',
+                    '.mb-modal-content': 'max-width: 1200px; border: 2px solid #00ff88;',
+                    '.mb-skin-name': 'color: #00ff88; font-weight: bold;'
+                });
+                showNotification('Estilos personalizados aplicados', 'success');
+            });
+
+            document.getElementById('reset-style').addEventListener('click', () => {
+                basicAPI.resetStyles();
+                showNotification('Estilos reseteados', 'info');
+            });
+
+            // Utilidades
+            document.getElementById('clear-cache').addEventListener('click', () => {
+                basicAPI.skinService.clearCache();
+                updateStats();
+                showNotification('Caché limpiado', 'info');
+            });
+
+            document.getElementById('debug-info').addEventListener('click', () => {
+                const debug = {
+                    totalSkins: basicAPI.skinService.cache.size,
+                    selectedSkins: selectedCount,
+                    apiState: basicAPI.isVisible ? 'Visible' : 'Oculto',
+                    currentFilter: basicAPI.currentFilter || 'none',
+                    currentSearch: basicAPI.currentSearch || 'none'
+                };
+                
+                document.getElementById('stats-result').innerHTML = `
+                    <strong>🔍 Debug Information:</strong><br>
+                    ${JSON.stringify(debug, null, 2)}
+                `;
+            });
+
+            document.getElementById('destroy-api').addEventListener('click', () => {
+                if (confirm('¿Estás seguro de que quieres destruir el API?')) {
+                    basicAPI.destroy();
+                    embeddedExplorer.destroy();
+                    document.getElementById('api-status').textContent = 'Destruido';
+                    showNotification('API destruido', 'warning');
+                }
+            });
+        }
+
+        // 4. Actualizar estadísticas
+        function updateStats() {
+            setTimeout(() => {
+                const totalSkins = basicAPI.skinService.cache.size || 0;
+                document.getElementById('total-skins').textContent = totalSkins;
+                document.getElementById('cached-skins').textContent = totalSkins;
+                document.getElementById('selected-count').textContent = selectedCount;
+            }, 100);
+        }
+
+        // 5. Sistema de notificaciones
+        function showNotification(message, type = 'info') {
+            const colors = {
+                success: '#00ff88',
+                error: '#ff4757',
+                warning: '#ffa502',
+                info: '#00ccff'
+            };
+
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${colors[type]};
+                color: ${type === 'success' || type === 'error' ? 'white' : 'black'};
+                padding: 15px 20px;
+                border-radius: 10px;
+                font-weight: bold;
+                z-index: 10000;
+                animation: slideIn 0.3s ease;
+                max-width: 300px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            `;
+            notification.textContent = message;
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // 6. Animaciones CSS
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 7. Mensaje inicial
+        console.log('%c🎮 MBSkinAPI Example Loaded!', 'color: #00ff88; font-size: 16px; font-weight: bold;');
+        console.log('%cExplora todas las funcionalidades del API usando los botones de la página.', 'color: #00ccff;');
+    </script>
+</body>
+</html>
