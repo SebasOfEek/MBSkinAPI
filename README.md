@@ -60,17 +60,17 @@ Download files from GitHub and include them in your project:
 #### Production
 
 ```html
-<link rel="stylesheet" href="path/to/your/project/dist/MBSkinStyles.css">
-<script src="path/to/your/project/dist/MBSkinAPI.bundle.min.js"></script>
+<link rel="stylesheet" href="dist/MBSkinStyles.css">
+<script src="dist/MBSkinAPI.bundle.min.js"></script>
 ```
 
 #### Development
 
 ```html
-<link rel="stylesheet" href="path/to/your/project/src/style/MBSkinStyles.css">
-<script src="path/to/your/project/src/services/SkinService.js"></script>
-<script src="path/to/your/project/src/ui/SkinExplorerUI.js"></script>
-<script src="path/to/your/project/src/core/MBSkinAPI.js"></script>
+<link rel="stylesheet" href="src/style/MBSkinStyles.css">
+<script src="src/services/SkinService.js"></script>
+<script src="src/ui/SkinExplorerUI.js"></script>
+<script src="src/core/MBSkinAPI.js"></script>
 ```
 
 ## Basic Usage
