@@ -38,7 +38,61 @@ class SkinService {
 
         try {
             const response = await fetch(this.apiUrl, { method: 'POST', body: formData });
-            const data = await response.json();
+            const text = await response.text();
+            
+            // Enhanced JSON cleaning with multiple fallback methods
+            let cleanText = text;
+            
+            // Method 1: Find JSON array between [ and ]
+            const jsonStart = text.indexOf('[');
+            const jsonEnd = text.lastIndexOf(']');
+            
+            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+                cleanText = text.substring(jsonStart, jsonEnd + 1);
+                console.log('SkinService: Cleaned response using method 1');
+            } else {
+                // Method 2: Try to extract JSON using regex
+                const jsonMatch = text.match(/\[.*?\]/s);
+                if (jsonMatch) {
+                    cleanText = jsonMatch[0];
+                    console.log('SkinService: Cleaned response using method 2');
+                } else {
+                    // Method 3: Remove all HTML tags and warning text, then try to find JSON
+                    cleanText = text
+                        .replace(/<[^>]*>/g, '') // Remove HTML tags
+                        .replace(/Warning:[^\[]*/gi, '') // Remove warning text before JSON
+                        .replace(/Notice:[^\[]*/gi, '') // Remove notice text before JSON
+                        .replace(/Fatal error:[^\[]*/gi, '') // Remove fatal error text before JSON
+                        .trim();
+                    
+                    // Try to find JSON in cleaned text
+                    const finalJsonMatch = cleanText.match(/\[.*?\]/s);
+                    if (finalJsonMatch) {
+                        cleanText = finalJsonMatch[0];
+                        console.log('SkinService: Cleaned response using method 3 (with regex)');
+                    } else {
+                        console.log('SkinService: Cleaned response using method 3 (final)');
+                    }
+                }
+            }
+            
+            // Final validation: ensure we have valid JSON content
+            if (!cleanText || cleanText.trim() === '') {
+                console.warn('SkinService: No valid JSON content found after cleaning');
+                throw new Error('No valid JSON content found in server response');
+            }
+            
+            if (!cleanText.startsWith('[') || !cleanText.endsWith(']')) {
+                console.warn('SkinService: Cleaned text does not appear to be valid JSON array');
+                throw new Error('Server response does not contain valid JSON array');
+            }
+            
+            // Log for debugging
+            console.log('SkinService: Original response length:', text.length);
+            console.log('SkinService: Cleaned response length:', cleanText.length);
+            console.log('SkinService: Cleaned response preview:', cleanText.substring(0, 100));
+            
+            const data = JSON.parse(cleanText);
             
             if (!data || data === 0) {
                 return [];
