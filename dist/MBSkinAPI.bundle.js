@@ -422,6 +422,15 @@
                 cleanText = jsonMatch[0];
               } else {
                 cleanText = text.replace(/<[^>]*>/g, "").replace(/Warning:[^\[]*(?!0$)/gi, "").replace(/Notice:[^\[]*(?!0$)/gi, "").replace(/Fatal error:[^\[]*(?!0$)/gi, "").trim();
+                if (cleanText === "0") {
+                  console.log("MBSkinAPI: Server returned 0 after cleaning warnings");
+                  if (requestVersion === this._requestVersion) {
+                    this.state.hasMore = false;
+                    this._resetSnapshot = null;
+                    this.updateLoadStatus("No hay m\xE1s resultados");
+                  }
+                  return [];
+                }
                 const finalJsonMatch = cleanText.match(new RegExp("\\[.*?\\]", "s"));
                 if (finalJsonMatch) {
                   cleanText = finalJsonMatch[0];
@@ -810,6 +819,10 @@
                 console.log("SkinService: Cleaned response using method 2");
               } else {
                 cleanText = text.replace(/<[^>]*>/g, "").replace(/Warning:[^\[]*/gi, "").replace(/Notice:[^\[]*/gi, "").replace(/Fatal error:[^\[]*/gi, "").trim();
+                if (cleanText === "0") {
+                  console.log("SkinService: Server returned 0 after cleaning warnings");
+                  return [];
+                }
                 const finalJsonMatch = cleanText.match(new RegExp("\\[.*?\\]", "s"));
                 if (finalJsonMatch) {
                   cleanText = finalJsonMatch[0];
