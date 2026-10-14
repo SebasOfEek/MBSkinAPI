@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MBSkinAPI - Interactive Quick Start Guide</title>
     
-    <!-- MBSkinAPI from CDN -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinStyles.css">
+    <!-- MBSkinAPI from local dist -->
+    <link rel="stylesheet" href="../dist/MBSkinStyles.css">
     
     <style>
         /* ===== BASE STYLES ===== */
@@ -591,7 +591,7 @@
 <span class="code-tag">&lt;link</span> <span class="code-attr">rel</span>=<span class="code-string">"stylesheet"</span> <span class="code-attr">href</span>=<span class="code-string">"https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinStyles.css"</span><span class="code-tag">&gt;</span>
 
 <span class="code-comment">&lt;!-- JavaScript --&gt;</span>
-<span class="code-tag">&lt;script</span> <span class="code-attr">src</span>=<span class="code-string">"https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinAPI.bundle.min.js"</span><span class="code-tag">&gt;&lt;/script&gt;</span></code></pre>
+<span class="code-tag">&lt;script</span> <span class="code-attr">src</span>=<span class="code-string">"https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinAPI.bundle.js"</span><span class="code-tag">&gt;&lt;/script&gt;</span></code></pre>
                 </div>
             </div>
         </section>
@@ -608,8 +608,8 @@
     <!-- Notification -->
     <div class="notification" id="notification"></div>
 
-    <!-- MBSkinAPI from CDN -->
-    <script src="https://cdn.jsdelivr.net/gh/SebasOfEek/MBSkinAPI@main/dist/MBSkinAPI.bundle.min.js"></script>
+    <!-- MBSkinAPI from local dist -->
+    <script src="../dist/MBSkinAPI.bundle.min.js"></script>
 
     <script>
         // Variables
@@ -664,11 +664,16 @@
             resultBox.className = 'result-box success';
             resultBox.innerHTML = `
                 <strong style="color: #7ee787;">Skin Selected Successfully</strong><br><br>
-                <strong>ID:</strong> ${skin.id}<br>
-                <strong>Name:</strong> ${skin.name}<br>
-                <strong>Author:</strong> ${skin.author}<br>
-                <strong>Date:</strong> ${skin.date || 'N/A'}
+                <strong>ID:</strong> <span data-skin-field="id"></span><br>
+                <strong>Name:</strong> <span data-skin-field="name"></span><br>
+                <strong>Author:</strong> <span data-skin-field="author"></span><br>
+                <strong>Date:</strong> <span data-skin-field="date"></span>
             `;
+
+            resultBox.querySelector('[data-skin-field="id"]').textContent = skin.id;
+            resultBox.querySelector('[data-skin-field="name"]').textContent = skin.name;
+            resultBox.querySelector('[data-skin-field="author"]').textContent = skin.author;
+            resultBox.querySelector('[data-skin-field="date"]').textContent = skin.date || 'N/A';
             
             showNotification(`Selected: ${skin.name} by ${skin.author}`);
         }
