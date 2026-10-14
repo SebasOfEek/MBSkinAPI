@@ -43,716 +43,6 @@
     mod
   ));
 
-  // src/core/MBSkinAPI.js
-  var require_MBSkinAPI = __commonJS({
-    "src/core/MBSkinAPI.js"(exports, module) {
-      var MBSkinAPI = class {
-        constructor(options = {}) {
-          this.config = {
-            apiUrl: options.apiUrl || "https://mineblocks.com/1/scripts/returnSkins.php",
-            imageUrl: options.imageUrl || "https://mineblocks.com/1/skins/images/",
-            container: options.container || null,
-            // Custom container selector or element
-            useModal: options.useModal !== false,
-            // Default to true for backward compatibility
-            autoSaveImages: options.autoSaveImages || false,
-            onSkinSelect: options.onSkinSelect || this.defaultOnSkinSelect.bind(this),
-            onSkinLoad: options.onSkinLoad || null,
-            onError: options.onError || this.defaultOnError.bind(this),
-            theme: options.theme || "dark",
-            showLoadStatus: options.showLoadStatus !== false,
-            enableInfiniteScroll: options.enableInfiniteScroll !== false,
-            itemsPerPage: options.itemsPerPage || 20
-          };
-          this.state = {
-            page: 1,
-            query: "",
-            filter: "all",
-            isLoading: false,
-            hasMore: true,
-            totalResults: 0,
-            isSmallResultSet: false,
-            skins: []
-          };
-          this._requestVersion = 0;
-          this._resetSnapshot = null;
-          this._searchTimer = null;
-          this.init();
-        }
-        init() {
-          this.injectStyles();
-          if (this.config.useModal) {
-            this.createModal();
-          } else if (this.config.container) {
-            this.setupCustomContainer();
-          } else {
-            console.warn("MBSkinAPI: No container specified. Use container option or set useModal to true.");
-            return;
-          }
-          this.bindEvents();
-          console.log("MBSkinAPI v2.0 initialized successfully");
-        }
-        injectStyles() {
-          if (document.getElementById("mb-skin-api-styles")) return;
-          const style = document.createElement("style");
-          style.id = "mb-skin-api-styles";
-          style.textContent = `
-            .mb-skin-api-container {
-                --mb-bg: ${this.config.theme === "dark" ? "#1a1a1a" : "#ffffff"};
-                --mb-border: ${this.config.theme === "dark" ? "#333" : "#ddd"};
-                --mb-text: ${this.config.theme === "dark" ? "#fff" : "#333"};
-                --mb-text-secondary: ${this.config.theme === "dark" ? "#aaa" : "#666"};
-                --mb-accent: ${this.config.theme === "dark" ? "#4CAF50" : "#2196F3"};
-                --mb-hover: ${this.config.theme === "dark" ? "#2d2d2d" : "#f5f5f5"};
-            }
-            
-            .mb-skin-api-container * {
-                box-sizing: border-box;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            }
-            
-            .mb-skin-search-container {
-                display: flex;
-                gap: 10px;
-                margin-bottom: 20px;
-                flex-wrap: wrap;
-            }
-            
-            .mb-skin-search-input {
-                flex: 1;
-                min-width: 200px;
-                padding: 12px;
-                background: var(--mb-bg);
-                border: 1px solid var(--mb-border);
-                color: var(--mb-text);
-                border-radius: 8px;
-                outline: none;
-                transition: border-color 0.3s;
-            }
-            
-            .mb-skin-search-input:focus {
-                border-color: var(--mb-accent);
-            }
-            
-            .mb-skin-filter-select {
-                padding: 12px;
-                background: var(--mb-bg);
-                color: var(--mb-text);
-                border: 1px solid var(--mb-border);
-                border-radius: 8px;
-                cursor: pointer;
-                outline: none;
-            }
-            
-            .mb-skin-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-                gap: 20px;
-                overflow-y: auto;
-                max-height: 600px;
-                padding: 10px;
-                align-content: start;
-            }
-            
-            .mb-skin-item {
-                background: var(--mb-hover);
-                padding: 15px;
-                border-radius: 12px;
-                text-align: center;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                border: 1px solid transparent;
-                height: 200px;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-            }
-            
-            .mb-skin-item:hover {
-                border-color: var(--mb-accent);
-                transform: translateY(-3px);
-                box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            }
-            
-            .mb-skin-item canvas {
-                image-rendering: pixelated;
-                transform: scale(2.5);
-                margin-bottom: 15px;
-                pointer-events: none;
-            }
-            
-            .mb-skin-item .mb-skin-name {
-                display: block;
-                font-size: 13px;
-                color: var(--mb-text);
-                width: 100%;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                font-weight: bold;
-            }
-            
-            .mb-skin-item .mb-skin-author {
-                font-size: 11px;
-                color: var(--mb-text-secondary);
-                margin-top: 4px;
-            }
-            
-            .mb-skin-load-status {
-                text-align: center;
-                padding: 15px;
-                color: var(--mb-accent);
-                font-size: 13px;
-                font-weight: 500;
-            }
-            
-            .mb-skin-modal {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.8);
-                display: none;
-                align-items: center;
-                justify-content: center;
-                z-index: 10000;
-            }
-            
-            .mb-skin-modal-content {
-                background: var(--mb-bg);
-                border: 1px solid var(--mb-border);
-                border-radius: 12px;
-                width: 90%;
-                max-width: 900px;
-                height: 80%;
-                max-height: 700px;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-            }
-            
-            .mb-skin-modal-header {
-                padding: 20px;
-                border-bottom: 1px solid var(--mb-border);
-                display: flex;
-                align-items: center;
-                gap: 15px;
-            }
-            
-            .mb-skin-close {
-                cursor: pointer;
-                font-size: 28px;
-                color: var(--mb-text-secondary);
-                margin-left: auto;
-                transition: color 0.3s;
-            }
-            
-            .mb-skin-close:hover {
-                color: var(--mb-text);
-            }
-            
-            .mb-skin-toast {
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: var(--mb-accent);
-                color: white;
-                padding: 12px 25px;
-                border-radius: 30px;
-                display: none;
-                z-index: 10001;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                font-size: 14px;
-            }
-        `;
-          document.head.appendChild(style);
-        }
-        createModal() {
-          const existingModal = document.getElementById("mb-skin-modal");
-          if (existingModal) existingModal.remove();
-          const modal = document.createElement("div");
-          modal.id = "mb-skin-modal";
-          modal.className = "mb-skin-modal";
-          modal.innerHTML = `
-            <div class="mb-skin-modal-content mb-skin-api-container">
-                <div class="mb-skin-modal-header">
-                    <input type="text" class="mb-skin-search-input" placeholder="Buscar skin...">
-                    <select class="mb-skin-filter-select">
-                        <option value="all">Todo</option>
-                        <option value="name">Nombre</option>
-                        <option value="author">Autor</option>
-                    </select>
-                    <span class="mb-skin-close" id="mb-skin-close">&times;</span>
-                </div>
-                <div class="mb-skin-grid" id="mb-skin-grid"></div>
-                <div class="mb-skin-load-status" id="mb-skin-load-status">Listo para buscar</div>
-            </div>
-        `;
-          const toast = document.createElement("div");
-          toast.id = "mb-skin-toast";
-          toast.className = "mb-skin-toast";
-          toast.textContent = "ID Copiado";
-          document.body.appendChild(modal);
-          document.body.appendChild(toast);
-          this.modal = modal;
-          this.grid = document.getElementById("mb-skin-grid");
-          this.searchInput = modal.querySelector(".mb-skin-search-input");
-          this.filterSelect = modal.querySelector(".mb-skin-filter-select");
-          this.closeBtn = document.getElementById("mb-skin-close");
-          this.loadStatus = document.getElementById("mb-skin-load-status");
-          this.toast = toast;
-        }
-        setupCustomContainer() {
-          const container = typeof this.config.container === "string" ? document.querySelector(this.config.container) : this.config.container;
-          if (!container) {
-            console.error("MBSkinAPI: Container not found:", this.config.container);
-            return;
-          }
-          container.className += " mb-skin-api-container";
-          container.innerHTML = `
-            <div class="mb-skin-search-container">
-                <input type="text" class="mb-skin-search-input" placeholder="Buscar skin...">
-                <select class="mb-skin-filter-select">
-                    <option value="all">Todo</option>
-                    <option value="name">Nombre</option>
-                    <option value="author">Autor</option>
-                </select>
-            </div>
-            <div class="mb-skin-grid" id="mb-skin-grid"></div>
-            <div class="mb-skin-load-status" id="mb-skin-load-status">Listo para buscar</div>
-        `;
-          this.container = container;
-          this.grid = document.getElementById("mb-skin-grid");
-          this.searchInput = container.querySelector(".mb-skin-search-input");
-          this.filterSelect = container.querySelector(".mb-skin-filter-select");
-          this.loadStatus = document.getElementById("mb-skin-load-status");
-          if (!document.getElementById("mb-skin-toast")) {
-            const toast = document.createElement("div");
-            toast.id = "mb-skin-toast";
-            toast.className = "mb-skin-toast";
-            toast.textContent = "ID Copiado";
-            document.body.appendChild(toast);
-            this.toast = toast;
-          }
-        }
-        bindEvents() {
-          if (this.closeBtn) {
-            this.closeBtn.onclick = () => this.hide();
-          }
-          this.searchInput.oninput = (e) => {
-            clearTimeout(this._searchTimer);
-            this._searchTimer = setTimeout(() => {
-              this._searchTimer = null;
-              this.search(e.target.value);
-            }, 500);
-          };
-          this.filterSelect.onchange = (e) => {
-            this.setFilter(e.target.value);
-          };
-          if (this.config.enableInfiniteScroll && this.grid) {
-            this.grid.onscroll = () => this.handleScroll();
-          }
-        }
-        async fetchSkins(reset = false) {
-          if (!reset && (this.state.isLoading || !this.state.hasMore)) return;
-          const requestVersion = reset ? ++this._requestVersion : this._requestVersion;
-          this.state.isLoading = true;
-          this.updateLoadStatus("Cargando...");
-          if (reset) {
-            if (!this._resetSnapshot) {
-              this._resetSnapshot = {
-                page: this.state.page,
-                hasMore: this.state.hasMore,
-                totalResults: this.state.totalResults,
-                isSmallResultSet: this.state.isSmallResultSet,
-                skins: [...this.state.skins]
-              };
-            }
-            this.state.page = 1;
-            this.state.hasMore = true;
-            this.state.totalResults = 0;
-            this.state.isSmallResultSet = false;
-            this.state.skins = [];
-            if (this.grid) this.grid.innerHTML = "";
-          }
-          const formData = new FormData();
-          formData.append("type", this.state.query ? "search" : "new");
-          formData.append("page", this.state.page);
-          if (this.state.query) formData.append("key", this.state.query);
-          try {
-            const response = await fetch(this.config.apiUrl, { method: "POST", body: formData });
-            if (!response || typeof response.ok !== "boolean") {
-              const responseError = new TypeError("Invalid HTTP response");
-              responseError.kind = "response";
-              throw responseError;
-            }
-            if (!response.ok) {
-              const httpError = new Error(`HTTP ${response.status} ${response.statusText || ""}`.trim());
-              httpError.name = "HttpError";
-              httpError.kind = "http";
-              httpError.status = response.status;
-              throw httpError;
-            }
-            const text = await response.text();
-            if (typeof text !== "string") {
-              const responseError = new TypeError("Response body must be text");
-              responseError.kind = "response";
-              throw responseError;
-            }
-            if (text.trim() === "0") {
-              if (requestVersion === this._requestVersion) {
-                console.log("MBSkinAPI: No more results available");
-                this.state.hasMore = false;
-                this._resetSnapshot = null;
-                this.updateLoadStatus("No hay m\xE1s resultados");
-              }
-              return [];
-            }
-            let cleanText = text;
-            const jsonStart = text.indexOf("[");
-            const jsonEnd = text.lastIndexOf("]");
-            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-              cleanText = text.substring(jsonStart, jsonEnd + 1);
-            } else {
-              const jsonMatch = text.match(new RegExp("\\[.*?\\]", "s"));
-              if (jsonMatch) {
-                cleanText = jsonMatch[0];
-              } else {
-                cleanText = text.replace(/<[^>]*>/g, "").replace(/Warning:[^\[]*(?!0$)/gi, "").replace(/Notice:[^\[]*(?!0$)/gi, "").replace(/Fatal error:[^\[]*(?!0$)/gi, "").trim();
-                if (cleanText === "0") {
-                  console.log("MBSkinAPI: Server returned 0 after cleaning warnings");
-                  if (requestVersion === this._requestVersion) {
-                    this.state.hasMore = false;
-                    this._resetSnapshot = null;
-                    this.updateLoadStatus("No hay m\xE1s resultados");
-                  }
-                  return [];
-                }
-                const finalJsonMatch = cleanText.match(new RegExp("\\[.*?\\]", "s"));
-                if (finalJsonMatch) {
-                  cleanText = finalJsonMatch[0];
-                }
-              }
-            }
-            if (!cleanText || cleanText.trim() === "") {
-              const parseError = new Error("No valid JSON content found in server response");
-              parseError.kind = "parse";
-              throw parseError;
-            }
-            if (!cleanText.startsWith("[") || !cleanText.endsWith("]")) {
-              const parseError = new Error("Server response does not contain valid JSON array");
-              parseError.kind = "parse";
-              throw parseError;
-            }
-            const data = JSON.parse(cleanText);
-            if (!Array.isArray(data)) {
-              const validationError = new TypeError("Server response must be an array of skins");
-              validationError.kind = "validation";
-              throw validationError;
-            }
-            const invalidSkinIndex = data.findIndex(
-              (skin) => !skin || typeof skin !== "object" || Array.isArray(skin) || typeof skin.id !== "string" || skin.id.length === 0 || typeof skin.name !== "string" || skin.name.length === 0 || typeof skin.author !== "string" || skin.author.length === 0
-            );
-            if (invalidSkinIndex !== -1) {
-              const validationError = new TypeError(`Invalid skin record at index ${invalidSkinIndex}`);
-              validationError.kind = "validation";
-              throw validationError;
-            }
-            if (!data || data === 0 || data.length === 0) {
-              if (requestVersion !== this._requestVersion) {
-                return [];
-              }
-              this.state.hasMore = false;
-              this._resetSnapshot = null;
-              this.updateLoadStatus("Fin del cat\xE1logo");
-              return [];
-            }
-            let filteredData = data;
-            if (this.state.query && this.state.filter !== "all") {
-              filteredData = data.filter(
-                (s) => this.state.filter === "author" ? s.author.toLowerCase().includes(this.state.query.toLowerCase()) : s.name.toLowerCase().includes(this.state.query.toLowerCase())
-              );
-            }
-            if (requestVersion !== this._requestVersion) {
-              return filteredData;
-            }
-            if (reset && this.state.page === 1 && this.state.query) {
-              this.state.totalResults = filteredData.length;
-              this.state.isSmallResultSet = this.state.totalResults < 35;
-            } else if (!this.state.query) {
-              this.state.isSmallResultSet = false;
-            }
-            this.state.skins = reset ? filteredData : [...this.state.skins, ...filteredData];
-            this.state.page++;
-            try {
-              this.renderSkins(filteredData, reset);
-            } catch (error) {
-              error.kind = "render";
-              throw error;
-            }
-            if (reset) this._resetSnapshot = null;
-            this.updateLoadStatus(this.state.hasMore ? "Desplaza para cargar m\xE1s" : "Fin del cat\xE1logo");
-            if (this.config.enableInfiniteScroll) {
-              const currentItems = this.grid.querySelectorAll(".mb-skin-item").length;
-              if (this.state.isSmallResultSet && this.state.hasMore) {
-                this.state.isLoading = false;
-                setTimeout(() => {
-                  if (requestVersion === this._requestVersion) this.fetchSkins();
-                }, 100);
-              } else if (currentItems < this.config.itemsPerPage && this.state.hasMore) {
-                this.state.isLoading = false;
-                setTimeout(() => {
-                  if (requestVersion === this._requestVersion) this.fetchSkins();
-                }, 100);
-              }
-            }
-            if (this.config.onSkinLoad) {
-              this.config.onSkinLoad(filteredData, this.state);
-            }
-            return filteredData;
-          } catch (error) {
-            if (requestVersion !== this._requestVersion) {
-              return [];
-            }
-            if (reset && this._resetSnapshot) {
-              const previousState = this._resetSnapshot;
-              this._resetSnapshot = null;
-              this.state.page = previousState.page;
-              this.state.hasMore = previousState.hasMore;
-              this.state.totalResults = previousState.totalResults;
-              this.state.isSmallResultSet = previousState.isSmallResultSet;
-              this.state.skins = previousState.skins;
-              try {
-                if (this.grid) this.grid.innerHTML = "";
-                this.renderSkins(previousState.skins, true);
-              } catch (restoreError) {
-                error.restoreError = restoreError;
-              }
-            }
-            if (!error.kind) {
-              error.kind = error instanceof SyntaxError ? "parse" : "network";
-            }
-            console.error("MBSkinAPI: Error fetching skins:", error);
-            this.updateLoadStatus("Error al cargar skins");
-            if (this.config.onError) {
-              this.config.onError(error);
-            }
-            return [];
-          } finally {
-            if (requestVersion === this._requestVersion) {
-              this.state.isLoading = false;
-            }
-          }
-        }
-        renderSkins(skins, reset = false) {
-          if (!this.grid) return;
-          if (reset) {
-            this.grid.innerHTML = "";
-          }
-          skins.forEach((skin) => {
-            const item = document.createElement("div");
-            item.className = "mb-skin-item";
-            const canvas = document.createElement("canvas");
-            canvas.id = `mb-skin-canvas-${skin.id}`;
-            const name = document.createElement("span");
-            name.className = "mb-skin-name";
-            name.textContent = skin.name;
-            const author = document.createElement("span");
-            author.className = "mb-skin-author";
-            author.textContent = skin.author;
-            item.appendChild(canvas);
-            item.appendChild(name);
-            item.appendChild(author);
-            item.onclick = () => this.selectSkin(skin);
-            this.grid.appendChild(item);
-            this.drawSkin(skin.id);
-          });
-        }
-        drawSkin(id) {
-          const canvas = document.getElementById(`mb-skin-canvas-${id}`);
-          if (!canvas) return;
-          const ctx = canvas.getContext("2d");
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.src = `${this.config.imageUrl}${id}.png`;
-          img.onload = () => {
-            canvas.width = 16;
-            canvas.height = 22;
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(img, 0, 0, 16, 22, 0, 0, 16, 22);
-            const imgData = ctx.getImageData(0, 0, 16, 22);
-            const px = imgData.data;
-            const r = px[0], g = px[1], b = px[2];
-            for (let i = 0; i < px.length; i += 4) {
-              if (px[i] === r && px[i + 1] === g && px[i + 2] === b) px[i + 3] = 0;
-            }
-            ctx.putImageData(imgData, 0, 0);
-          };
-          img.onerror = () => {
-            console.warn(`MBSkinAPI: Failed to load skin image for ID ${id}`);
-          };
-        }
-        async selectSkin(skin) {
-          try {
-            await navigator.clipboard.writeText(skin.id);
-            this.showToast(`ID ${skin.id} copiado`);
-            if (this.config.autoSaveImages) {
-              await this.saveSkinImage(skin);
-            }
-            this.config.onSkinSelect(skin);
-          } catch (error) {
-            console.error("MBSkinAPI: Error selecting skin:", error);
-            if (this.config.onError) {
-              this.config.onError(error);
-            }
-          }
-        }
-        async saveSkinImage(skin) {
-          try {
-            const canvas = document.getElementById(`mb-skin-canvas-${skin.id}`);
-            if (!canvas) {
-              console.warn(`MBSkinAPI: Canvas not found for skin ID ${skin.id}`);
-              return;
-            }
-            const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `skin_${skin.id}_${skin.name.replace(/[^a-zA-Z0-9]/g, "_")}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            console.log(`MBSkinAPI: Saved skin image for ID ${skin.id}`);
-          } catch (error) {
-            console.error(`MBSkinAPI: Failed to save skin image for ID ${skin.id}:`, error);
-          }
-        }
-        showToast(message) {
-          if (this.toast) {
-            this.toast.textContent = message;
-            this.toast.style.display = "block";
-            setTimeout(() => {
-              this.toast.style.display = "none";
-            }, 2e3);
-          }
-        }
-        updateLoadStatus(message) {
-          if (this.loadStatus && this.config.showLoadStatus) {
-            this.loadStatus.textContent = message;
-          }
-        }
-        handleScroll() {
-          if (!this.grid || !this.config.enableInfiniteScroll) return;
-          if (this.grid.scrollTop + this.grid.clientHeight >= this.grid.scrollHeight - 100) {
-            this.fetchSkins();
-          }
-        }
-        // Public API methods
-        show() {
-          if (this.modal) {
-            this.modal.style.display = "flex";
-            if (this.grid && this.grid.innerHTML === "") {
-              this.fetchSkins();
-            }
-          } else if (this.container) {
-            this.container.style.display = "block";
-            if (this.grid && this.grid.innerHTML === "") {
-              this.fetchSkins();
-            }
-          }
-        }
-        hide() {
-          if (this.modal) {
-            this.modal.style.display = "none";
-          } else if (this.container) {
-            this.container.style.display = "none";
-          }
-        }
-        search(query) {
-          clearTimeout(this._searchTimer);
-          this._searchTimer = null;
-          this.state.query = query;
-          if (this.searchInput) {
-            this.searchInput.value = query;
-          }
-          return this.fetchSkins(true);
-        }
-        setFilter(filter) {
-          clearTimeout(this._searchTimer);
-          this._searchTimer = null;
-          this.state.filter = filter;
-          if (this.filterSelect) {
-            this.filterSelect.value = filter;
-          }
-          if (this.searchInput) {
-            this.state.query = this.searchInput.value;
-          }
-          if (this.state.query) {
-            return this.fetchSkins(true);
-          }
-        }
-        reset() {
-          clearTimeout(this._searchTimer);
-          this._searchTimer = null;
-          this.state.query = "";
-          if (this.searchInput) {
-            this.searchInput.value = "";
-          }
-          return this.fetchSkins(true);
-        }
-        getState() {
-          return __spreadValues({}, this.state);
-        }
-        getConfig() {
-          return __spreadValues({}, this.config);
-        }
-        updateConfig(newConfig) {
-          this.config = __spreadValues(__spreadValues({}, this.config), newConfig);
-        }
-        destroy() {
-          this._requestVersion++;
-          this._resetSnapshot = null;
-          clearTimeout(this._searchTimer);
-          this._searchTimer = null;
-          if (this.modal) {
-            this.modal.remove();
-          }
-          const styles = document.getElementById("mb-skin-api-styles");
-          if (styles) {
-            styles.remove();
-          }
-          if (this.toast) {
-            this.toast.remove();
-          }
-          this.modal = null;
-          this.grid = null;
-          this.searchInput = null;
-          this.filterSelect = null;
-          this.closeBtn = null;
-          this.loadStatus = null;
-          this.toast = null;
-          this.container = null;
-        }
-        // Default callbacks
-        defaultOnSkinSelect(skin) {
-          console.log("MBSkinAPI: Skin selected:", skin);
-        }
-        defaultOnError(error) {
-          console.error("MBSkinAPI: Error occurred:", error);
-        }
-      };
-      if (typeof module !== "undefined" && module.exports) {
-        module.exports = MBSkinAPI;
-      } else {
-        window.MBSkinAPI = MBSkinAPI;
-      }
-    }
-  });
-
   // src/services/SkinService.js
   var require_SkinService = __commonJS({
     "src/services/SkinService.js"(exports, module) {
@@ -807,29 +97,21 @@
               return [];
             }
             let cleanText = text;
-            const jsonStart = text.indexOf("[");
-            const jsonEnd = text.lastIndexOf("]");
+            cleanText = text.replace(/<[^>]*>/g, "").replace(/Warning:[^\[\n]*/gi, "").replace(/Notice:[^\[\n]*/gi, "").replace(/Fatal error:[^\[\n]*/gi, "").replace(/<br\s*\/?>/gi, "").trim();
+            if (cleanText === "0") {
+              console.log("SkinService: Server returned 0 after cleaning");
+              return [];
+            }
+            const jsonStart = cleanText.indexOf("[");
+            const jsonEnd = cleanText.lastIndexOf("]");
             if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-              cleanText = text.substring(jsonStart, jsonEnd + 1);
-              console.log("SkinService: Cleaned response using method 1");
+              cleanText = cleanText.substring(jsonStart, jsonEnd + 1);
+              console.log("SkinService: Cleaned response using method 2");
             } else {
-              const jsonMatch = text.match(new RegExp("\\[.*?\\]", "s"));
+              const jsonMatch = cleanText.match(new RegExp("\\[.*?\\]", "s"));
               if (jsonMatch) {
                 cleanText = jsonMatch[0];
-                console.log("SkinService: Cleaned response using method 2");
-              } else {
-                cleanText = text.replace(/<[^>]*>/g, "").replace(/Warning:[^\[]*/gi, "").replace(/Notice:[^\[]*/gi, "").replace(/Fatal error:[^\[]*/gi, "").trim();
-                if (cleanText === "0") {
-                  console.log("SkinService: Server returned 0 after cleaning warnings");
-                  return [];
-                }
-                const finalJsonMatch = cleanText.match(new RegExp("\\[.*?\\]", "s"));
-                if (finalJsonMatch) {
-                  cleanText = finalJsonMatch[0];
-                  console.log("SkinService: Cleaned response using method 3 (with regex)");
-                } else {
-                  console.log("SkinService: Cleaned response using method 3 (final)");
-                }
+                console.log("SkinService: Cleaned response using method 3 (regex)");
               }
             }
             if (!cleanText || cleanText.trim() === "") {
@@ -939,7 +221,7 @@
          * @returns {string} - Image URL
          */
         getSkinImageUrl(skinId) {
-          return `${this.imageUrl}${skinId}.png`;
+          return `${this.imageUrl}${encodeURIComponent(skinId)}.png`;
         }
         /**
          * Draws a skin on canvas
@@ -1064,280 +346,718 @@
     }
   });
 
+  // src/core/MBSkinAPI.js
+  var require_MBSkinAPI = __commonJS({
+    "src/core/MBSkinAPI.js"(exports, module) {
+      (function() {
+        function createSkinService(options = {}) {
+          let SkinServiceClass;
+          if (typeof module !== "undefined" && module.exports) {
+            SkinServiceClass = require_SkinService();
+          } else if (typeof window !== "undefined") {
+            SkinServiceClass = window.SkinService;
+          }
+          if (typeof SkinServiceClass !== "function") {
+            throw new Error("SkinService is not available");
+          }
+          return new SkinServiceClass(options);
+        }
+        class MBSkinAPI {
+          constructor(options = {}) {
+            this.config = {
+              apiUrl: options.apiUrl || "https://mineblocks.com/1/scripts/returnSkins.php",
+              imageUrl: options.imageUrl || "https://mineblocks.com/1/skins/images/",
+              container: options.container || null,
+              // Custom container selector or element
+              useModal: options.useModal !== false,
+              // Default to true for backward compatibility
+              autoSaveImages: options.autoSaveImages || false,
+              onSkinSelect: options.onSkinSelect || this.defaultOnSkinSelect.bind(this),
+              onSkinLoad: options.onSkinLoad || null,
+              onError: options.onError || this.defaultOnError.bind(this),
+              theme: options.theme || "dark",
+              showLoadStatus: options.showLoadStatus !== false,
+              enableInfiniteScroll: options.enableInfiniteScroll !== false,
+              itemsPerPage: options.itemsPerPage || 20
+            };
+            this.skinService = createSkinService({
+              apiUrl: this.config.apiUrl,
+              imageUrl: this.config.imageUrl
+            });
+            this.state = {
+              page: 1,
+              query: "",
+              filter: "all",
+              isLoading: false,
+              hasMore: true,
+              totalResults: 0,
+              isSmallResultSet: false,
+              skins: []
+            };
+            this._requestVersion = 0;
+            this._resetSnapshot = null;
+            this._searchTimer = null;
+            this._eventCleanups = [];
+            this._cardCleanups = [];
+            this._pendingTimers = /* @__PURE__ */ new Set();
+            this._autoLoadCount = 0;
+            this._returnFocusElement = null;
+            this._containerSnapshot = null;
+            this.init();
+          }
+          init() {
+            this.injectStyles();
+            if (this.config.useModal) {
+              this.createModal();
+            } else if (this.config.container) {
+              this.setupCustomContainer();
+            } else {
+              console.warn("MBSkinAPI: No container specified. Use container option or set useModal to true.");
+              return;
+            }
+            this.bindEvents();
+            console.log("MBSkinAPI v2.0 initialized successfully");
+          }
+          injectStyles() {
+          }
+          createModal() {
+            const modal = document.createElement("div");
+            modal.id = "mb-skin-modal";
+            modal.className = "mb-skin-modal";
+            modal.dataset.theme = this.config.theme === "dark" ? "dark" : "light";
+            modal.setAttribute("role", "dialog");
+            modal.setAttribute("aria-modal", "true");
+            modal.setAttribute("aria-hidden", "true");
+            modal.setAttribute("aria-label", "Explorador de skins");
+            modal.innerHTML = `
+            <div class="mb-skin-modal-content mb-skin-api-container" tabindex="-1" data-theme="${this.config.theme === "dark" ? "dark" : "light"}">
+                <div class="mb-skin-modal-header">
+                    <input type="text" class="mb-skin-search-input" placeholder="Buscar skin..." aria-label="Buscar skin">
+                    <select class="mb-skin-filter-select" aria-label="Filtrar skins">
+                        <option value="all">Todo</option>
+                        <option value="name">Nombre</option>
+                        <option value="author">Autor</option>
+                    </select>
+                    <button type="button" class="mb-skin-close" id="mb-skin-close" aria-label="Cerrar explorador">&times;</button>
+                </div>
+                <div class="mb-skin-grid" id="mb-skin-grid"></div>
+                <div class="mb-skin-load-status" id="mb-skin-load-status" role="status" aria-live="polite">Listo para buscar</div>
+            </div>
+        `;
+            const toast = document.createElement("div");
+            toast.id = "mb-skin-toast";
+            toast.className = "mb-skin-toast";
+            toast.setAttribute("role", "status");
+            toast.setAttribute("aria-live", "polite");
+            toast.textContent = "ID Copiado";
+            document.body.appendChild(modal);
+            modal.appendChild(toast);
+            this.modal = modal;
+            this.modalContent = modal.querySelector(".mb-skin-modal-content");
+            this.grid = modal.querySelector("#mb-skin-grid");
+            this.searchInput = modal.querySelector(".mb-skin-search-input");
+            this.filterSelect = modal.querySelector(".mb-skin-filter-select");
+            this.closeBtn = modal.querySelector("#mb-skin-close");
+            this.loadStatus = modal.querySelector("#mb-skin-load-status");
+            this.toast = toast;
+          }
+          setupCustomContainer() {
+            const container = typeof this.config.container === "string" ? document.querySelector(this.config.container) : this.config.container;
+            if (!container) {
+              console.error("MBSkinAPI: Container not found:", this.config.container);
+              return;
+            }
+            this._containerSnapshot = {
+              container,
+              hadClass: container.classList.contains("mb-skin-api-container"),
+              theme: container.getAttribute("data-theme"),
+              appliedTheme: this.config.theme === "dark" ? "dark" : "light",
+              childNodes: Array.from(container.childNodes)
+            };
+            container.classList.add("mb-skin-api-container");
+            container.dataset.theme = this.config.theme === "dark" ? "dark" : "light";
+            container.innerHTML = `
+            <div class="mb-skin-search-container">
+                <input type="text" class="mb-skin-search-input" placeholder="Buscar skin..." aria-label="Buscar skin">
+                <select class="mb-skin-filter-select" aria-label="Filtrar skins">
+                    <option value="all">Todo</option>
+                    <option value="name">Nombre</option>
+                    <option value="author">Autor</option>
+                </select>
+            </div>
+            <div class="mb-skin-grid" id="mb-skin-grid"></div>
+            <div class="mb-skin-load-status" id="mb-skin-load-status" role="status" aria-live="polite">Listo para buscar</div>
+        `;
+            this.container = container;
+            this.grid = container.querySelector("#mb-skin-grid");
+            this.searchInput = container.querySelector(".mb-skin-search-input");
+            this.filterSelect = container.querySelector(".mb-skin-filter-select");
+            this.loadStatus = container.querySelector("#mb-skin-load-status");
+            const toast = document.createElement("div");
+            toast.id = "mb-skin-toast";
+            toast.className = "mb-skin-toast";
+            toast.setAttribute("role", "status");
+            toast.setAttribute("aria-live", "polite");
+            toast.textContent = "ID Copiado";
+            container.appendChild(toast);
+            this.toast = toast;
+            this._containerSnapshot.generatedNodes = Array.from(container.childNodes).filter((node) => !this._containerSnapshot.childNodes.includes(node));
+          }
+          bindEvents() {
+            if (this.closeBtn) this._listen(this.closeBtn, "click", () => this.hide());
+            if (this.modal) {
+              this._listen(this.modal, "keydown", (event) => this.handleModalKeydown(event));
+            }
+            this._listen(this.searchInput, "input", (event) => {
+              clearTimeout(this._searchTimer);
+              this._searchTimer = setTimeout(() => {
+                this._searchTimer = null;
+                this.search(event.target.value);
+              }, 500);
+            });
+            this._listen(this.filterSelect, "change", (event) => this.setFilter(event.target.value));
+            if (this.config.enableInfiniteScroll && this.grid) {
+              this._listen(this.grid, "scroll", () => this.handleScroll());
+            }
+          }
+          _listen(target, eventName, handler) {
+            if (!target) return;
+            if (!this._eventCleanups) this._eventCleanups = [];
+            target.addEventListener(eventName, handler);
+            const cleanup = () => target.removeEventListener(eventName, handler);
+            this._eventCleanups.push(cleanup);
+            return cleanup;
+          }
+          _listenCard(target, eventName, handler) {
+            const cleanup = this._listen(target, eventName, handler);
+            if (cleanup) {
+              if (!this._cardCleanups) this._cardCleanups = [];
+              this._cardCleanups.push(cleanup);
+            }
+          }
+          _clearCardListeners() {
+            if (!this._cardCleanups) this._cardCleanups = [];
+            if (!this._eventCleanups) this._eventCleanups = [];
+            for (const cleanup of this._cardCleanups) {
+              cleanup();
+              const cleanupIndex = this._eventCleanups.indexOf(cleanup);
+              if (cleanupIndex !== -1) this._eventCleanups.splice(cleanupIndex, 1);
+            }
+            this._cardCleanups.length = 0;
+          }
+          _scheduleTimeout(callback, delay) {
+            if (!this._pendingTimers) this._pendingTimers = /* @__PURE__ */ new Set();
+            const timer = setTimeout(() => {
+              this._pendingTimers.delete(timer);
+              callback();
+            }, delay);
+            this._pendingTimers.add(timer);
+            return timer;
+          }
+          handleModalKeydown(event) {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              this.hide();
+              return;
+            }
+            if (event.key !== "Tab" || !this.modal) return;
+            const focusable = Array.from(this.modal.querySelectorAll(
+              'button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex="0"]'
+            ));
+            if (focusable.length === 0) {
+              event.preventDefault();
+              this.modalContent.focus();
+              return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && (document.activeElement === first || document.activeElement === this.modalContent)) {
+              event.preventDefault();
+              last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+              event.preventDefault();
+              first.focus();
+            }
+          }
+          async fetchSkins(reset = false) {
+            if (!reset && (this.state.isLoading || !this.state.hasMore)) return;
+            const requestVersion = reset ? ++this._requestVersion : this._requestVersion;
+            this.state.isLoading = true;
+            this.updateLoadStatus("Cargando...");
+            if (reset) {
+              this._autoLoadCount = 0;
+              if (!this._resetSnapshot) {
+                this._resetSnapshot = {
+                  page: this.state.page,
+                  hasMore: this.state.hasMore,
+                  totalResults: this.state.totalResults,
+                  isSmallResultSet: this.state.isSmallResultSet,
+                  skins: [...this.state.skins]
+                };
+              }
+              this.state.page = 1;
+              this.state.hasMore = true;
+              this.state.totalResults = 0;
+              this.state.isSmallResultSet = false;
+              this.state.skins = [];
+              if (this.grid) {
+                this._clearCardListeners();
+                this.grid.innerHTML = "";
+              }
+            }
+            try {
+              const skinService = this.skinService || (this.skinService = createSkinService({
+                apiUrl: this.config.apiUrl,
+                imageUrl: this.config.imageUrl
+              }));
+              if (skinService.apiUrl !== this.config.apiUrl) {
+                skinService.apiUrl = this.config.apiUrl;
+                skinService.clearCache();
+              }
+              skinService.imageUrl = this.config.imageUrl;
+              const data = this.state.query ? await skinService.searchSkins(this.state.query, this.state.filter, this.state.page) : await skinService.getNewSkins(this.state.page);
+              if (!data || data === 0 || data.length === 0) {
+                if (requestVersion !== this._requestVersion) {
+                  return [];
+                }
+                this.state.hasMore = false;
+                this._resetSnapshot = null;
+                this.updateLoadStatus("Fin del cat\xE1logo");
+                return [];
+              }
+              const filteredData = data;
+              if (requestVersion !== this._requestVersion) {
+                return filteredData;
+              }
+              if (reset && this.state.page === 1 && this.state.query) {
+                this.state.totalResults = filteredData.length;
+                this.state.isSmallResultSet = this.state.totalResults < 35;
+              } else if (!this.state.query) {
+                this.state.isSmallResultSet = false;
+              }
+              this.state.skins = reset ? filteredData : [...this.state.skins, ...filteredData];
+              this.state.page++;
+              try {
+                this.renderSkins(filteredData, reset);
+              } catch (error) {
+                error.kind = "render";
+                throw error;
+              }
+              if (reset) this._resetSnapshot = null;
+              this.updateLoadStatus(this.state.hasMore ? "Desplaza para cargar m\xE1s" : "Fin del cat\xE1logo");
+              if (this.config.enableInfiniteScroll && this._autoLoadCount < 2) {
+                const currentItems = this.grid.querySelectorAll(".mb-skin-item").length;
+                if (currentItems < this.config.itemsPerPage && this.state.hasMore) {
+                  this.state.isLoading = false;
+                  this._autoLoadCount++;
+                  this._scheduleTimeout(() => {
+                    if (requestVersion === this._requestVersion) this.fetchSkins();
+                  }, 100);
+                }
+              }
+              if (this.config.onSkinLoad) {
+                this.config.onSkinLoad(filteredData, this.state);
+              }
+              return filteredData;
+            } catch (error) {
+              if (requestVersion !== this._requestVersion) {
+                return [];
+              }
+              const callbackError = error.cause || error;
+              if (reset && this._resetSnapshot) {
+                const previousState = this._resetSnapshot;
+                this._resetSnapshot = null;
+                this.state.page = previousState.page;
+                this.state.hasMore = previousState.hasMore;
+                this.state.totalResults = previousState.totalResults;
+                this.state.isSmallResultSet = previousState.isSmallResultSet;
+                this.state.skins = previousState.skins;
+                try {
+                  if (this.grid) {
+                    this._clearCardListeners();
+                    this.grid.innerHTML = "";
+                  }
+                  this.renderSkins(previousState.skins, true);
+                } catch (restoreError) {
+                  callbackError.restoreError = restoreError;
+                }
+              }
+              if (!callbackError.kind) {
+                callbackError.kind = callbackError instanceof SyntaxError ? "parse" : "network";
+              }
+              console.error("MBSkinAPI: Error fetching skins:", callbackError);
+              this.updateLoadStatus("Error al cargar skins");
+              if (this.config.onError) {
+                this.config.onError(callbackError);
+              }
+              return [];
+            } finally {
+              if (requestVersion === this._requestVersion) {
+                this.state.isLoading = false;
+              }
+            }
+          }
+          renderSkins(skins, reset = false) {
+            if (!this.grid) return;
+            if (reset) {
+              this._clearCardListeners();
+              this.grid.innerHTML = "";
+            }
+            skins.forEach((skin) => {
+              const item = document.createElement("div");
+              item.className = "mb-skin-item";
+              const canvas = document.createElement("canvas");
+              canvas.id = `mb-skin-canvas-${skin.id}`;
+              const name = document.createElement("span");
+              name.className = "mb-skin-name";
+              name.textContent = skin.name;
+              const author = document.createElement("span");
+              author.className = "mb-skin-author";
+              author.textContent = skin.author;
+              item.setAttribute("role", "button");
+              item.setAttribute("tabindex", "0");
+              item.setAttribute("aria-label", `${skin.name} por ${skin.author}`);
+              item.appendChild(canvas);
+              item.appendChild(name);
+              item.appendChild(author);
+              this._listenCard(item, "click", () => this.selectSkin(skin));
+              this._listenCard(item, "keydown", (event) => {
+                if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+                  event.preventDefault();
+                  this.selectSkin(skin);
+                }
+              });
+              this.grid.appendChild(item);
+              this.drawSkin(skin.id);
+            });
+          }
+          drawSkin(id) {
+            const canvas = this.grid && Array.from(this.grid.querySelectorAll("canvas")).find((candidate) => candidate.id === `mb-skin-canvas-${id}`);
+            if (!canvas) return;
+            const skinService = this.skinService || (this.skinService = createSkinService({
+              apiUrl: this.config.apiUrl,
+              imageUrl: this.config.imageUrl
+            }));
+            skinService.imageUrl = this.config.imageUrl;
+            skinService.drawSkin(id, canvas).catch(() => {
+              console.warn(`MBSkinAPI: Failed to load skin image for ID ${id}`);
+            });
+          }
+          async selectSkin(skin) {
+            try {
+              await navigator.clipboard.writeText(skin.id);
+              this.showToast(`ID ${skin.id} copiado`);
+              if (this.config.autoSaveImages) {
+                await this.saveSkinImage(skin);
+              }
+              this.config.onSkinSelect(skin);
+            } catch (error) {
+              console.error("MBSkinAPI: Error selecting skin:", error);
+              if (this.config.onError) {
+                this.config.onError(error);
+              }
+            }
+          }
+          async saveSkinImage(skin) {
+            try {
+              const canvas = this.grid && Array.from(this.grid.querySelectorAll("canvas")).find((candidate) => candidate.id === `mb-skin-canvas-${skin.id}`);
+              if (!canvas) {
+                console.warn(`MBSkinAPI: Canvas not found for skin ID ${skin.id}`);
+                return;
+              }
+              const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `skin_${skin.id}_${skin.name.replace(/[^a-zA-Z0-9]/g, "_")}.png`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              console.log(`MBSkinAPI: Saved skin image for ID ${skin.id}`);
+            } catch (error) {
+              console.error(`MBSkinAPI: Failed to save skin image for ID ${skin.id}:`, error);
+            }
+          }
+          showToast(message) {
+            if (this.toast) {
+              this.toast.textContent = message;
+              this.toast.style.display = "block";
+              if (this._toastTimer) {
+                clearTimeout(this._toastTimer);
+                this._pendingTimers.delete(this._toastTimer);
+              }
+              this._toastTimer = this._scheduleTimeout(() => {
+                this.toast.style.display = "none";
+                this._toastTimer = null;
+              }, 2e3);
+            }
+          }
+          updateLoadStatus(message) {
+            if (this.loadStatus && this.config.showLoadStatus) {
+              this.loadStatus.textContent = message;
+            }
+          }
+          handleScroll() {
+            if (!this.grid || !this.config.enableInfiniteScroll) return;
+            if (this.grid.scrollTop + this.grid.clientHeight >= this.grid.scrollHeight - 100) {
+              this.fetchSkins();
+            }
+          }
+          // Public API methods
+          show() {
+            if (this.modal) {
+              if (this.modal.getAttribute("aria-hidden") === "true") {
+                this._returnFocusElement = document.activeElement;
+              }
+              this.modal.style.display = "flex";
+              this.modal.setAttribute("aria-hidden", "false");
+              this.searchInput.focus();
+              if (this.grid && this.grid.innerHTML === "") {
+                this.fetchSkins();
+              }
+            } else if (this.container) {
+              this.container.style.display = "block";
+              if (this.grid && this.grid.innerHTML === "") {
+                this.fetchSkins();
+              }
+            }
+          }
+          hide() {
+            if (this.modal) {
+              this.modal.style.display = "none";
+              this.modal.setAttribute("aria-hidden", "true");
+              if (this._returnFocusElement && this._returnFocusElement.isConnected) {
+                this._returnFocusElement.focus();
+              }
+              this._returnFocusElement = null;
+            } else if (this.container) {
+              this.container.style.display = "none";
+            }
+          }
+          search(query) {
+            clearTimeout(this._searchTimer);
+            this._searchTimer = null;
+            this.state.query = query;
+            if (this.searchInput) {
+              this.searchInput.value = query;
+            }
+            return this.fetchSkins(true);
+          }
+          setFilter(filter) {
+            clearTimeout(this._searchTimer);
+            this._searchTimer = null;
+            this.state.filter = filter;
+            if (this.filterSelect) {
+              this.filterSelect.value = filter;
+            }
+            if (this.searchInput) {
+              this.state.query = this.searchInput.value;
+            }
+            if (this.state.query) {
+              return this.fetchSkins(true);
+            }
+          }
+          reset() {
+            clearTimeout(this._searchTimer);
+            this._searchTimer = null;
+            this.state.query = "";
+            if (this.searchInput) {
+              this.searchInput.value = "";
+            }
+            return this.fetchSkins(true);
+          }
+          getState() {
+            return __spreadValues({}, this.state);
+          }
+          getConfig() {
+            return __spreadValues({}, this.config);
+          }
+          updateConfig(newConfig) {
+            const apiUrlChanged = newConfig.apiUrl !== void 0 && newConfig.apiUrl !== this.config.apiUrl;
+            this.config = __spreadValues(__spreadValues({}, this.config), newConfig);
+            const theme = this.config.theme === "dark" ? "dark" : "light";
+            if (this.modal) {
+              this.modal.dataset.theme = theme;
+              this.modalContent.dataset.theme = theme;
+            }
+            if (this._containerSnapshot) {
+              this._containerSnapshot.container.dataset.theme = theme;
+              this._containerSnapshot.appliedTheme = theme;
+            }
+            if (this.skinService) {
+              this.skinService.apiUrl = this.config.apiUrl;
+              this.skinService.imageUrl = this.config.imageUrl;
+              if (apiUrlChanged) this.skinService.clearCache();
+            }
+          }
+          destroy() {
+            this._requestVersion++;
+            this._resetSnapshot = null;
+            clearTimeout(this._searchTimer);
+            this._searchTimer = null;
+            for (const timer of this._pendingTimers || []) clearTimeout(timer);
+            if (this._pendingTimers) this._pendingTimers.clear();
+            this._toastTimer = null;
+            (this._eventCleanups || []).forEach((cleanup) => cleanup());
+            this._eventCleanups = [];
+            if (this._returnFocusElement && this._returnFocusElement.isConnected) {
+              this._returnFocusElement.focus();
+            }
+            this._returnFocusElement = null;
+            if (this.modal) {
+              this.modal.remove();
+            }
+            if (this.toast) {
+              this.toast.remove();
+            }
+            if (this._containerSnapshot) {
+              const { container, hadClass, theme, appliedTheme, childNodes, generatedNodes } = this._containerSnapshot;
+              generatedNodes.forEach((node) => {
+                if (node.parentNode === container) container.removeChild(node);
+              });
+              childNodes.forEach((node) => {
+                if (node.parentNode !== container) container.insertBefore(node, container.firstChild);
+              });
+              if (!hadClass) container.classList.remove("mb-skin-api-container");
+              if (container.getAttribute("data-theme") === appliedTheme) {
+                if (theme === null) container.removeAttribute("data-theme");
+                else container.setAttribute("data-theme", theme);
+              }
+              this._containerSnapshot = null;
+            }
+            if (this._cardCleanups) this._cardCleanups.length = 0;
+            this.modal = null;
+            this.modalContent = null;
+            this.grid = null;
+            this.searchInput = null;
+            this.filterSelect = null;
+            this.closeBtn = null;
+            this.loadStatus = null;
+            this.toast = null;
+            this.container = null;
+            this.skinService = null;
+          }
+          // Default callbacks
+          defaultOnSkinSelect(skin) {
+            console.log("MBSkinAPI: Skin selected:", skin);
+          }
+          defaultOnError(error) {
+            console.error("MBSkinAPI: Error occurred:", error);
+          }
+        }
+        if (typeof module !== "undefined" && module.exports) {
+          module.exports = MBSkinAPI;
+        } else {
+          window.MBSkinAPI = MBSkinAPI;
+        }
+      })();
+    }
+  });
+
   // src/ui/SkinExplorerUI.js
   var require_SkinExplorerUI = __commonJS({
     "src/ui/SkinExplorerUI.js"(exports, module) {
-      var SkinExplorerUI = class {
-        constructor(options = {}) {
-          this.container = options.container || document.body;
-          this.skinService = options.skinService;
-          this.onSkinSelect = options.onSkinSelect || (() => {
-          });
-          this.theme = options.theme || "dark";
-          this.customStyles = options.customStyles || {};
-          this._searchRequestId = 0;
-          this._searchSnapshot = null;
-          this._searchTimer = null;
-          this._view = "results";
-          this.state = {
-            skins: [],
-            filteredSkins: [],
-            isLoading: false,
-            hasMore: true,
-            currentPage: 1,
-            query: "",
-            filter: "all",
-            selectedSkin: null
-          };
-          this.init();
-        }
-        init() {
-          this.loadStyles();
-          this.createUI();
-          this.bindEvents();
-        }
-        loadStyles() {
-          if (document.getElementById("mb-ui-styles")) return;
-          const style = document.createElement("style");
-          style.id = "mb-ui-styles";
-          style.textContent = this.getStyles();
-          document.head.appendChild(style);
-        }
-        getStyles() {
-          const baseStyles = `
-            :root { 
-                --mb-accent: #4caf50; 
-                --mb-bg: #121212; 
-                --mb-card: #1e1e1e; 
-                --mb-border: #333;
-                --mb-text: #ffffff;
-                --mb-text-secondary: #888;
-                --mb-hover: #2d2d2d;
-                --mb-success: #4caf50;
-                --mb-error: #f44336;
-                --mb-warning: #ff9800;
-            }
-            
-            .mb-explorer {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background: var(--mb-bg);
-                color: var(--mb-text);
-                border-radius: 12px;
-                overflow: hidden;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            }
-            
-            .mb-header {
-                background: var(--mb-card);
-                padding: 20px;
-                border-bottom: 1px solid var(--mb-border);
-            }
-            
-            .mb-title {
-                margin: 0 0 15px 0;
-                font-size: 24px;
-                color: var(--mb-text);
-            }
-            
-            .mb-controls {
-                display: flex;
-                gap: 10px;
-                flex-wrap: wrap;
-            }
-            
-            .mb-search-input {
-                flex: 1;
-                min-width: 200px;
-                padding: 10px 15px;
-                background: #111;
-                border: 1px solid var(--mb-border);
-                color: var(--mb-text);
-                border-radius: 8px;
-                outline: none;
-                transition: border-color 0.3s;
-            }
-            
-            .mb-search-input:focus {
-                border-color: var(--mb-accent);
-            }
-            
-            .mb-filter-select {
-                padding: 10px 15px;
-                background: #111;
-                border: 1px solid var(--mb-border);
-                color: var(--mb-text);
-                border-radius: 8px;
-                cursor: pointer;
-                outline: none;
-            }
-            
-            .mb-btn {
-                padding: 10px 20px;
-                background: var(--mb-accent);
-                color: white;
-                border: none;
-                border-radius: 8px;
-                cursor: pointer;
-                font-weight: bold;
-                transition: background 0.3s;
-            }
-            
-            .mb-btn:hover {
-                background: #45a049;
-            }
-            
-            .mb-btn:disabled {
-                background: #666;
-                cursor: not-allowed;
-            }
-            
-            .mb-content {
-                height: 500px;
-                overflow-y: auto;
-                padding: 20px;
-            }
-            
-            .mb-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-                gap: 15px;
-            }
-            
-            .mb-skin-card {
-                background: var(--mb-card);
-                border: 1px solid var(--mb-border);
-                border-radius: 10px;
-                padding: 12px;
-                text-align: center;
-                cursor: pointer;
-                transition: all 0.3s;
-                height: 180px;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-            }
-            
-            .mb-skin-card:hover {
-                border-color: var(--mb-accent);
-                background: var(--mb-hover);
-                transform: translateY(-2px);
-            }
-            
-            .mb-skin-card.selected {
-                border-color: var(--mb-accent);
-                background: rgba(76, 175, 80, 0.1);
-            }
-            
-            .mb-skin-canvas {
-                image-rendering: pixelated;
-                transform: scale(2);
-                margin-bottom: 10px;
-                pointer-events: none;
-            }
-            
-            .mb-skin-name {
-                font-size: 12px;
-                font-weight: bold;
-                margin-bottom: 4px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-                width: 100%;
-            }
-            
-            .mb-skin-author {
-                font-size: 10px;
-                color: var(--mb-text-secondary);
-            }
-            
-            .mb-loading {
-                text-align: center;
-                padding: 40px;
-                color: var(--mb-text-secondary);
-            }
-            
-            .mb-error {
-                text-align: center;
-                padding: 40px;
-                color: var(--mb-error);
-            }
-            
-            .mb-empty {
-                text-align: center;
-                padding: 40px;
-                color: var(--mb-text-secondary);
-            }
-            
-            .mb-footer {
-                background: var(--mb-card);
-                padding: 15px 20px;
-                border-top: 1px solid var(--mb-border);
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            
-            .mb-status {
-                font-size: 14px;
-                color: var(--mb-text-secondary);
-            }
-            
-            .mb-pagination {
-                display: flex;
-                gap: 10px;
-            }
-            
-            .mb-spinner {
-                border: 3px solid var(--mb-border);
-                border-top: 3px solid var(--mb-accent);
-                border-radius: 50%;
-                width: 20px;
-                height: 20px;
-                animation: mb-spin 1s linear infinite;
-                display: inline-block;
-                margin-right: 10px;
-            }
-            
-            @keyframes mb-spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            
-            .mb-toast {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                background: var(--mb-success);
-                color: white;
-                padding: 12px 20px;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                transform: translateX(400px);
-                transition: transform 0.3s;
-                z-index: 10000;
-            }
-            
-            .mb-toast.show {
-                transform: translateX(0);
-            }
-        `;
-          let customCSS = "";
-          for (const [property, value] of Object.entries(this.customStyles)) {
-            customCSS += `${property} { ${value} }
-`;
+      (function() {
+        function createSkinService(options = {}) {
+          let SkinServiceClass;
+          if (typeof module !== "undefined" && module.exports) {
+            SkinServiceClass = require_SkinService();
+          } else if (typeof window !== "undefined") {
+            SkinServiceClass = window.SkinService;
           }
-          return baseStyles + customCSS;
+          if (typeof SkinServiceClass !== "function") {
+            throw new Error("SkinService is not available");
+          }
+          return new SkinServiceClass(options);
         }
-        createUI() {
-          const explorer = document.createElement("div");
-          explorer.className = "mb-explorer";
-          explorer.innerHTML = `
+        class SkinExplorerUI {
+          constructor(options = {}) {
+            this.container = options.container || document.body;
+            this.skinService = options.skinService || createSkinService();
+            this.onSkinSelect = options.onSkinSelect || (() => {
+            });
+            this.theme = options.theme || "dark";
+            this.customStyles = options.customStyles || {};
+            this._searchRequestId = 0;
+            this._searchSnapshot = null;
+            this._searchTimer = null;
+            this._eventCleanups = [];
+            this._cardCleanups = [];
+            this._pendingTimers = /* @__PURE__ */ new Set();
+            this._toasts = /* @__PURE__ */ new Set();
+            this._view = "results";
+            this.state = {
+              skins: [],
+              filteredSkins: [],
+              isLoading: false,
+              hasMore: true,
+              currentPage: 1,
+              query: "",
+              filter: "all",
+              selectedSkin: null
+            };
+            this.init();
+          }
+          init() {
+            if (!this.skinService) {
+              this.skinService = createSkinService();
+            }
+            this.loadStyles();
+            this.createUI();
+            this.bindEvents();
+          }
+          loadStyles() {
+          }
+          getStyles() {
+            return "";
+          }
+          _listen(target, eventName, handler) {
+            if (!target) return;
+            if (!this._eventCleanups) this._eventCleanups = [];
+            target.addEventListener(eventName, handler);
+            const cleanup = () => target.removeEventListener(eventName, handler);
+            this._eventCleanups.push(cleanup);
+            return cleanup;
+          }
+          _listenCard(target, eventName, handler) {
+            const cleanup = this._listen(target, eventName, handler);
+            if (cleanup) {
+              if (!this._cardCleanups) this._cardCleanups = [];
+              this._cardCleanups.push(cleanup);
+            }
+          }
+          _clearCardListeners() {
+            if (!this._cardCleanups) this._cardCleanups = [];
+            if (!this._eventCleanups) this._eventCleanups = [];
+            for (const cleanup of this._cardCleanups) {
+              cleanup();
+              const cleanupIndex = this._eventCleanups.indexOf(cleanup);
+              if (cleanupIndex !== -1) this._eventCleanups.splice(cleanupIndex, 1);
+            }
+            this._cardCleanups.length = 0;
+          }
+          _scheduleTimeout(callback, delay) {
+            if (!this._pendingTimers) this._pendingTimers = /* @__PURE__ */ new Set();
+            const timer = setTimeout(() => {
+              this._pendingTimers.delete(timer);
+              callback();
+            }, delay);
+            this._pendingTimers.add(timer);
+            return timer;
+          }
+          createUI() {
+            const explorer = document.createElement("div");
+            explorer.className = "mb-explorer";
+            explorer.dataset.theme = this.theme;
+            explorer.setAttribute("role", "region");
+            explorer.setAttribute("aria-label", "Explorador de skins");
+            explorer.innerHTML = `
             <div class="mb-header">
                 <h2 class="mb-title">Explorador de Skins</h2>
                 <div class="mb-controls">
-                    <input type="text" class="mb-search-input" placeholder="Buscar skins...">
-                    <select class="mb-filter-select">
+                    <input type="text" class="mb-search-input" placeholder="Buscar skins..." aria-label="Buscar skins">
+                    <select class="mb-filter-select" aria-label="Filtrar skins">
                         <option value="all">Todo</option>
                         <option value="name">Nombre</option>
                         <option value="author">Autor</option>
@@ -1348,335 +1068,389 @@
             </div>
             <div class="mb-content">
                 <div class="mb-grid" id="mb-skins-grid"></div>
-                <div class="mb-loading" id="mb-loading" style="display: none;">
+                <div class="mb-loading" id="mb-loading" style="display: none;" role="status" aria-live="polite">
                     <div class="mb-spinner"></div>
                     Loading skins...
                 </div>
-                <div class="mb-error" id="mb-error" style="display: none;">
+                <div class="mb-error" id="mb-error" style="display: none;" role="alert">
                     Error loading skins. Please try again.
                 </div>
-                <div class="mb-empty" id="mb-empty" style="display: none;">
+                <div class="mb-empty" id="mb-empty" style="display: none;" role="status">
                     No skins found.
                 </div>
             </div>
             <div class="mb-footer">
-                <div class="mb-status" id="mb-status">Ready</div>
+                <div class="mb-status" id="mb-status" role="status" aria-live="polite">Ready</div>
                 <div class="mb-pagination">
                     <button class="mb-btn" id="mb-load-more" style="display: none;">Cargar m\xE1s</button>
                 </div>
             </div>
         `;
-          this.container.appendChild(explorer);
-          this.explorer = explorer;
-          this.content = explorer.querySelector(".mb-content");
-          this.grid = document.getElementById("mb-skins-grid");
-          this.loading = document.getElementById("mb-loading");
-          this.error = document.getElementById("mb-error");
-          this.empty = document.getElementById("mb-empty");
-          this.status = document.getElementById("mb-status");
-          this.loadMoreBtn = document.getElementById("mb-load-more");
-          this.searchInput = explorer.querySelector(".mb-search-input");
-          this.filterSelect = explorer.querySelector(".mb-filter-select");
-        }
-        bindEvents() {
-          this.searchInput.addEventListener("input", () => {
-            clearTimeout(this._searchTimer);
-            this._searchTimer = setTimeout(() => {
+            this.container.appendChild(explorer);
+            this.explorer = explorer;
+            this.content = explorer.querySelector(".mb-content");
+            this.grid = explorer.querySelector("#mb-skins-grid");
+            this.loading = explorer.querySelector("#mb-loading");
+            this.error = explorer.querySelector("#mb-error");
+            this.empty = explorer.querySelector("#mb-empty");
+            this.status = explorer.querySelector("#mb-status");
+            this.loadMoreBtn = explorer.querySelector("#mb-load-more");
+            this.searchBtn = explorer.querySelector("#mb-search-btn");
+            this.resetBtn = explorer.querySelector("#mb-reset-btn");
+            this.searchInput = explorer.querySelector(".mb-search-input");
+            this.filterSelect = explorer.querySelector(".mb-filter-select");
+            for (const [selector, declarations] of Object.entries(this.customStyles)) {
+              const elements = [];
+              if (this.explorer.matches(selector)) elements.push(this.explorer);
+              elements.push(...this.explorer.querySelectorAll(selector));
+              elements.forEach((element) => {
+                element.style.cssText += `${element.style.cssText ? ";" : ""}${declarations}`;
+              });
+            }
+          }
+          bindEvents() {
+            this._listen(this.searchInput, "input", () => {
+              clearTimeout(this._searchTimer);
+              this._searchTimer = setTimeout(() => {
+                this._searchTimer = null;
+                this.state.query = this.searchInput.value;
+                this.performSearch();
+              }, 300);
+            });
+            this._listen(this.filterSelect, "change", () => {
+              clearTimeout(this._searchTimer);
+              this._searchTimer = null;
+              this.state.filter = this.filterSelect.value;
+              this.state.query = this.searchInput.value;
+              this.performSearch();
+            });
+            this._listen(this.searchBtn, "click", () => {
+              clearTimeout(this._searchTimer);
               this._searchTimer = null;
               this.state.query = this.searchInput.value;
               this.performSearch();
-            }, 300);
-          });
-          this.filterSelect.addEventListener("change", () => {
-            clearTimeout(this._searchTimer);
-            this._searchTimer = null;
-            this.state.filter = this.filterSelect.value;
-            this.state.query = this.searchInput.value;
-            this.performSearch();
-          });
-          document.getElementById("mb-search-btn").addEventListener("click", () => {
-            clearTimeout(this._searchTimer);
-            this._searchTimer = null;
-            this.state.query = this.searchInput.value;
-            this.performSearch();
-          });
-          document.getElementById("mb-reset-btn").addEventListener("click", () => {
-            this.reset();
-          });
-          this.loadMoreBtn.addEventListener("click", () => {
-            this.loadMore();
-          });
-          const scrollContainer = this.content || this.grid;
-          scrollContainer.addEventListener("scroll", () => {
-            if (scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 100) {
+            });
+            this._listen(this.resetBtn, "click", () => {
+              this.reset();
+            });
+            this._listen(this.loadMoreBtn, "click", () => {
               this.loadMore();
+            });
+            const scrollContainer = this.content || this.grid;
+            this._listen(scrollContainer, "scroll", () => {
+              if (scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 100) {
+                this.loadMore();
+              }
+            });
+          }
+          async performSearch() {
+            const requestId = ++this._searchRequestId;
+            if (!this.skinService) {
+              this._restoreSearchSnapshot();
+              this.showError("SkinService not configured");
+              return;
             }
-          });
-        }
-        async performSearch() {
-          const requestId = ++this._searchRequestId;
-          if (!this.skinService) {
-            this._restoreSearchSnapshot();
-            this.showError("SkinService not configured");
-            return;
+            if (!this._searchSnapshot) {
+              this._searchSnapshot = {
+                skins: [...this.state.skins],
+                currentPage: this.state.currentPage,
+                hasMore: this.state.hasMore,
+                selectedSkin: this.state.selectedSkin
+              };
+            }
+            this.state.currentPage = 1;
+            this.state.skins = [];
+            this.state.hasMore = true;
+            this.showLoading(true);
+            try {
+              const skins = this.state.query ? await this.skinService.searchSkins(this.state.query, this.state.filter, 1) : await this.skinService.getNewSkins(1);
+              if (requestId !== this._searchRequestId) return;
+              this.state.skins = skins;
+              this.state.hasMore = skins.length > 0;
+              this.renderSkins();
+              this._searchSnapshot = null;
+              this.updateStatus(`Se encontraron ${skins.length} skins`);
+            } catch (error) {
+              if (requestId !== this._searchRequestId) return;
+              this._restoreSearchSnapshot(error.kind === "render");
+              this.showError("Error searching skins");
+              console.error(error);
+            } finally {
+              if (requestId === this._searchRequestId) this.showLoading(false);
+            }
           }
-          if (!this._searchSnapshot) {
-            this._searchSnapshot = {
-              skins: [...this.state.skins],
-              currentPage: this.state.currentPage,
-              hasMore: this.state.hasMore,
-              selectedSkin: this.state.selectedSkin
-            };
+          async loadMore() {
+            if (!this.state.hasMore || this.state.isLoading || !this.skinService) return;
+            const requestId = this._searchRequestId;
+            const previousPage = this.state.currentPage;
+            const previousSkins = [...this.state.skins];
+            const requestedPage = this.state.currentPage + 1;
+            this.state.currentPage = requestedPage;
+            this.showLoading(true);
+            try {
+              const skins = this.state.query ? await this.skinService.searchSkins(this.state.query, this.state.filter, requestedPage) : await this.skinService.getNewSkins(requestedPage);
+              if (requestId !== this._searchRequestId) return;
+              if (skins.length === 0) {
+                this.state.hasMore = false;
+                this.renderSkins(true);
+                this.updateStatus("Fin del cat\xE1logo");
+              } else {
+                this.state.skins.push(...skins);
+                this.renderSkins(true);
+                this.updateStatus(`Se encontraron ${this.state.skins.length} skins`);
+              }
+            } catch (error) {
+              if (requestId !== this._searchRequestId) return;
+              this.state.currentPage = previousPage;
+              if (error.kind === "render") {
+                this.state.skins = previousSkins;
+                try {
+                  this.renderSkins();
+                } catch (restoreError) {
+                  error.restoreError = restoreError;
+                }
+              }
+              this.showError("Error loading more skins");
+              console.error(error);
+            } finally {
+              if (requestId === this._searchRequestId) this.showLoading(false);
+            }
           }
-          this.state.currentPage = 1;
-          this.state.skins = [];
-          this.state.hasMore = true;
-          this.showLoading(true);
-          try {
-            const skins = this.state.query ? await this.skinService.searchSkins(this.state.query, this.state.filter, 1) : await this.skinService.getNewSkins(1);
-            if (requestId !== this._searchRequestId) return;
-            this.state.skins = skins;
-            this.state.hasMore = skins.length > 0;
-            this.renderSkins();
+          renderSkins(append = false) {
+            if (!append) {
+              this._clearCardListeners();
+              this.grid.innerHTML = "";
+            }
+            const skinsToRender = append ? this.state.skins.slice(this.grid.children.length) : this.state.skins;
+            if (skinsToRender.length === 0 && !append) {
+              this.showEmpty(true);
+              return;
+            }
+            this.showEmpty(false);
+            try {
+              skinsToRender.forEach((skin) => {
+                const card = this.createSkinCard(skin);
+                this.grid.appendChild(card);
+              });
+            } catch (error) {
+              error.kind = "render";
+              throw error;
+            }
+            this.loadMoreBtn.style.display = this.state.hasMore ? "block" : "none";
+          }
+          createSkinCard(skin) {
+            const card = document.createElement("div");
+            card.className = "mb-skin-card";
+            card.dataset.skinId = skin.id;
+            card.setAttribute("role", "button");
+            card.setAttribute("tabindex", "0");
+            card.setAttribute("aria-label", `${skin.name} por ${skin.author}`);
+            card.setAttribute("aria-pressed", String(this.state.selectedSkin === skin.id));
+            if (this.state.selectedSkin === skin.id) {
+              card.classList.add("selected");
+            }
+            const canvas = document.createElement("canvas");
+            canvas.className = "mb-skin-canvas";
+            canvas.width = 16;
+            canvas.height = 22;
+            const name = document.createElement("div");
+            name.className = "mb-skin-name";
+            name.textContent = skin.name;
+            name.title = skin.name;
+            const author = document.createElement("div");
+            author.className = "mb-skin-author";
+            author.textContent = skin.author;
+            card.appendChild(canvas);
+            card.appendChild(name);
+            card.appendChild(author);
+            this._listenCard(card, "click", () => {
+              this.selectSkin(skin);
+            });
+            this._listenCard(card, "keydown", (event) => {
+              if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+                event.preventDefault();
+                this.selectSkin(skin);
+              }
+            });
+            if (this.skinService) {
+              this.skinService.drawSkin(skin.id, canvas).catch((error) => {
+                console.error(`Error drawing skin ${skin.id}:`, error);
+              });
+            }
+            return card;
+          }
+          selectSkin(skin) {
+            this.grid.querySelectorAll(".mb-skin-card").forEach((card) => {
+              card.classList.remove("selected");
+              card.setAttribute("aria-pressed", "false");
+            });
+            const selectedCard = Array.from(this.grid.querySelectorAll(".mb-skin-card")).find((card) => card.dataset.skinId === String(skin.id));
+            if (selectedCard) {
+              selectedCard.classList.add("selected");
+              selectedCard.setAttribute("aria-pressed", "true");
+            }
+            this.state.selectedSkin = skin.id;
+            this.onSkinSelect(skin);
+            this.showToast(`Skin selected: ${skin.name}`);
+          }
+          showLoading(show) {
+            this.state.isLoading = show;
+            if (show) this._view = "loading";
+            else if (this._view === "loading") this._view = "results";
+            this._renderView();
+          }
+          showError(show) {
+            if (show) {
+              this.state.isLoading = false;
+              this._view = "error";
+            } else if (this._view === "error") {
+              this._view = "results";
+            }
+            this._renderView();
+          }
+          showEmpty(show) {
+            if (show) {
+              this.state.isLoading = false;
+              this._view = "empty";
+            } else if (this._view === "empty") {
+              this._view = "results";
+            }
+            this._renderView();
+          }
+          _renderView() {
+            this.loading.style.display = this._view === "loading" ? "block" : "none";
+            this.error.style.display = this._view === "error" ? "block" : "none";
+            this.empty.style.display = this._view === "empty" ? "block" : "none";
+            this.grid.style.display = this._view === "results" ? "grid" : "none";
+          }
+          _restoreSearchSnapshot(shouldRender = false) {
+            if (!this._searchSnapshot) return;
+            this.state.skins = this._searchSnapshot.skins;
+            this.state.currentPage = this._searchSnapshot.currentPage;
+            this.state.hasMore = this._searchSnapshot.hasMore;
+            this.state.selectedSkin = this._searchSnapshot.selectedSkin;
             this._searchSnapshot = null;
-            this.updateStatus(`Se encontraron ${skins.length} skins`);
-          } catch (error) {
-            if (requestId !== this._searchRequestId) return;
-            this._restoreSearchSnapshot(error.kind === "render");
-            this.showError("Error searching skins");
-            console.error(error);
-          } finally {
-            if (requestId === this._searchRequestId) this.showLoading(false);
-          }
-        }
-        async loadMore() {
-          if (!this.state.hasMore || this.state.isLoading || !this.skinService) return;
-          const requestId = this._searchRequestId;
-          const previousPage = this.state.currentPage;
-          const previousSkins = [...this.state.skins];
-          const requestedPage = this.state.currentPage + 1;
-          this.state.currentPage = requestedPage;
-          this.showLoading(true);
-          try {
-            const skins = this.state.query ? await this.skinService.searchSkins(this.state.query, this.state.filter, requestedPage) : await this.skinService.getNewSkins(requestedPage);
-            if (requestId !== this._searchRequestId) return;
-            if (skins.length === 0) {
-              this.state.hasMore = false;
-              this.renderSkins(true);
-              this.updateStatus("Fin del cat\xE1logo");
-            } else {
-              this.state.skins.push(...skins);
-              this.renderSkins(true);
-              this.updateStatus(`Se encontraron ${this.state.skins.length} skins`);
-            }
-          } catch (error) {
-            if (requestId !== this._searchRequestId) return;
-            this.state.currentPage = previousPage;
-            if (error.kind === "render") {
-              this.state.skins = previousSkins;
+            if (shouldRender) {
               try {
                 this.renderSkins();
-              } catch (restoreError) {
-                error.restoreError = restoreError;
+              } catch (error) {
+                console.error(error);
               }
             }
-            this.showError("Error loading more skins");
-            console.error(error);
-          } finally {
-            if (requestId === this._searchRequestId) this.showLoading(false);
           }
-        }
-        renderSkins(append = false) {
-          if (!append) {
-            this.grid.innerHTML = "";
+          updateStatus(message) {
+            this.status.textContent = message;
           }
-          const skinsToRender = append ? this.state.skins.slice(this.grid.children.length) : this.state.skins;
-          if (skinsToRender.length === 0 && !append) {
-            this.showEmpty(true);
-            return;
-          }
-          this.showEmpty(false);
-          try {
-            skinsToRender.forEach((skin) => {
-              const card = this.createSkinCard(skin);
-              this.grid.appendChild(card);
-            });
-          } catch (error) {
-            error.kind = "render";
-            throw error;
-          }
-          this.loadMoreBtn.style.display = this.state.hasMore ? "block" : "none";
-        }
-        createSkinCard(skin) {
-          const card = document.createElement("div");
-          card.className = "mb-skin-card";
-          card.dataset.skinId = skin.id;
-          if (this.state.selectedSkin === skin.id) {
-            card.classList.add("selected");
-          }
-          const canvas = document.createElement("canvas");
-          canvas.className = "mb-skin-canvas";
-          canvas.width = 16;
-          canvas.height = 22;
-          const name = document.createElement("div");
-          name.className = "mb-skin-name";
-          name.textContent = skin.name;
-          name.title = skin.name;
-          const author = document.createElement("div");
-          author.className = "mb-skin-author";
-          author.textContent = skin.author;
-          card.appendChild(canvas);
-          card.appendChild(name);
-          card.appendChild(author);
-          card.addEventListener("click", () => {
-            this.selectSkin(skin);
-          });
-          if (this.skinService) {
-            this.skinService.drawSkin(skin.id, canvas).catch((error) => {
-              console.error(`Error drawing skin ${skin.id}:`, error);
-            });
-          }
-          return card;
-        }
-        selectSkin(skin) {
-          this.grid.querySelectorAll(".mb-skin-card").forEach((card) => {
-            card.classList.remove("selected");
-          });
-          const selectedCard = Array.from(this.grid.querySelectorAll(".mb-skin-card")).find((card) => card.dataset.skinId === String(skin.id));
-          if (selectedCard) {
-            selectedCard.classList.add("selected");
-          }
-          this.state.selectedSkin = skin.id;
-          this.onSkinSelect(skin);
-          this.showToast(`Skin selected: ${skin.name}`);
-        }
-        showLoading(show) {
-          this.state.isLoading = show;
-          if (show) this._view = "loading";
-          this._renderView();
-        }
-        showError(show) {
-          if (show) {
-            this.state.isLoading = false;
-            this._view = "error";
-          } else if (this._view === "error") {
-            this._view = "results";
-          }
-          this._renderView();
-        }
-        showEmpty(show) {
-          if (show) {
-            this.state.isLoading = false;
-            this._view = "empty";
-          } else if (this._view === "empty") {
-            this._view = "results";
-          }
-          this._renderView();
-        }
-        _renderView() {
-          this.loading.style.display = this._view === "loading" ? "block" : "none";
-          this.error.style.display = this._view === "error" ? "block" : "none";
-          this.empty.style.display = this._view === "empty" ? "block" : "none";
-          this.grid.style.display = this._view === "results" ? "grid" : "none";
-        }
-        _restoreSearchSnapshot(shouldRender = false) {
-          if (!this._searchSnapshot) return;
-          this.state.skins = this._searchSnapshot.skins;
-          this.state.currentPage = this._searchSnapshot.currentPage;
-          this.state.hasMore = this._searchSnapshot.hasMore;
-          this.state.selectedSkin = this._searchSnapshot.selectedSkin;
-          this._searchSnapshot = null;
-          if (shouldRender) {
-            try {
-              this.renderSkins();
-            } catch (error) {
-              console.error(error);
+          showToast(message, type = "success") {
+            const toast = document.createElement("div");
+            toast.className = "mb-toast";
+            toast.setAttribute("role", "status");
+            toast.setAttribute("aria-live", "polite");
+            toast.textContent = message;
+            if (type === "error") {
+              toast.style.background = "var(--mb-error)";
+            } else if (type === "warning") {
+              toast.style.background = "var(--mb-warning)";
             }
+            this.explorer.appendChild(toast);
+            this._toasts.add(toast);
+            this._scheduleTimeout(() => toast.classList.add("show"), 100);
+            this._scheduleTimeout(() => {
+              toast.classList.remove("show");
+              this._scheduleTimeout(() => {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+                this._toasts.delete(toast);
+              }, 300);
+            }, 3e3);
           }
-        }
-        updateStatus(message) {
-          this.status.textContent = message;
-        }
-        showToast(message, type = "success") {
-          const toast = document.createElement("div");
-          toast.className = "mb-toast";
-          toast.textContent = message;
-          if (type === "error") {
-            toast.style.background = "var(--mb-error)";
-          } else if (type === "warning") {
-            toast.style.background = "var(--mb-warning)";
+          reset() {
+            clearTimeout(this._searchTimer);
+            this._searchTimer = null;
+            if (!this._searchSnapshot) {
+              this._searchSnapshot = {
+                skins: [...this.state.skins],
+                currentPage: this.state.currentPage,
+                hasMore: this.state.hasMore,
+                selectedSkin: this.state.selectedSkin
+              };
+            }
+            this.state.query = "";
+            this.state.filter = "all";
+            this.state.currentPage = 1;
+            this.state.skins = [];
+            this.state.selectedSkin = null;
+            this.searchInput.value = "";
+            this.filterSelect.value = "all";
+            this.updateStatus("Listo");
+            this.performSearch();
           }
-          document.body.appendChild(toast);
-          setTimeout(() => toast.classList.add("show"), 100);
-          setTimeout(() => {
-            toast.classList.remove("show");
-            setTimeout(() => document.body.removeChild(toast), 300);
-          }, 3e3);
-        }
-        reset() {
-          clearTimeout(this._searchTimer);
-          this._searchTimer = null;
-          if (!this._searchSnapshot) {
-            this._searchSnapshot = {
-              skins: [...this.state.skins],
-              currentPage: this.state.currentPage,
-              hasMore: this.state.hasMore,
-              selectedSkin: this.state.selectedSkin
-            };
-          }
-          this.state.query = "";
-          this.state.filter = "all";
-          this.state.currentPage = 1;
-          this.state.skins = [];
-          this.state.selectedSkin = null;
-          this.searchInput.value = "";
-          this.filterSelect.value = "all";
-          this.updateStatus("Listo");
-          this.performSearch();
-        }
-        debounce(func, wait) {
-          let timeout;
-          return function executedFunction(...args) {
-            const later = () => {
+          debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+              const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+              };
               clearTimeout(timeout);
-              func(...args);
+              timeout = setTimeout(later, wait);
             };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-          };
-        }
-        // Métodos públicos
-        setSkinService(skinService) {
-          this.skinService = skinService;
-        }
-        setOnSkinSelect(callback) {
-          this.onSkinSelect = callback;
-        }
-        search(query) {
-          clearTimeout(this._searchTimer);
-          this._searchTimer = null;
-          this.state.query = query;
-          this.searchInput.value = query;
-          this.performSearch();
-        }
-        getSelectedSkin() {
-          return this.state.skins.find((skin) => skin.id === this.state.selectedSkin);
-        }
-        destroy() {
-          this._searchRequestId++;
-          this._searchSnapshot = null;
-          clearTimeout(this._searchTimer);
-          this._searchTimer = null;
-          if (this.explorer && this.explorer.parentNode) {
-            this.explorer.parentNode.removeChild(this.explorer);
+          }
+          // Métodos públicos
+          setSkinService(skinService) {
+            this.skinService = skinService;
+          }
+          setOnSkinSelect(callback) {
+            this.onSkinSelect = callback;
+          }
+          search(query) {
+            clearTimeout(this._searchTimer);
+            this._searchTimer = null;
+            this.state.query = query;
+            this.searchInput.value = query;
+            this.performSearch();
+          }
+          getSelectedSkin() {
+            return this.state.skins.find((skin) => skin.id === this.state.selectedSkin);
+          }
+          destroy() {
+            this._searchRequestId++;
+            this._searchSnapshot = null;
+            clearTimeout(this._searchTimer);
+            this._searchTimer = null;
+            for (const timer of this._pendingTimers || []) clearTimeout(timer);
+            if (this._pendingTimers) this._pendingTimers.clear();
+            (this._eventCleanups || []).forEach((cleanup) => cleanup());
+            this._eventCleanups = [];
+            if (this._cardCleanups) this._cardCleanups.length = 0;
+            (this._toasts || /* @__PURE__ */ new Set()).forEach((toast) => {
+              if (toast.parentNode) toast.parentNode.removeChild(toast);
+            });
+            if (this._toasts) this._toasts.clear();
+            if (this.explorer && this.explorer.parentNode) {
+              this.explorer.parentNode.removeChild(this.explorer);
+            }
+            this.skinService = null;
+            this.container = null;
+            this.explorer = null;
+            this.content = null;
+            this.grid = null;
+            this.loading = null;
+            this.error = null;
+            this.empty = null;
+            this.status = null;
+            this.loadMoreBtn = null;
+            this.searchBtn = null;
+            this.resetBtn = null;
+            this.searchInput = null;
+            this.filterSelect = null;
           }
         }
-      };
-      if (typeof module !== "undefined" && module.exports) {
-        module.exports = SkinExplorerUI;
-      } else {
-        window.SkinExplorerUI = SkinExplorerUI;
-      }
+        if (typeof module !== "undefined" && module.exports) {
+          module.exports = SkinExplorerUI;
+        } else {
+          window.SkinExplorerUI = SkinExplorerUI;
+        }
+      })();
     }
   });
 
