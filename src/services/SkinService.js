@@ -38,53 +38,80 @@ class SkinService {
 
         try {
             const response = await fetch(this.apiUrl, { method: 'POST', body: formData });
+
+            if (!response || typeof response.ok !== 'boolean') {
+                const responseError = new TypeError('Invalid HTTP response');
+                responseError.kind = 'response';
+                throw responseError;
+            }
+
+            if (!response.ok) {
+                const httpError = new Error(`HTTP ${response.status} ${response.statusText || ''}`.trim());
+                httpError.name = 'HttpError';
+                httpError.kind = 'http';
+                httpError.status = response.status;
+                throw httpError;
+            }
+
             const text = await response.text();
+
+            if (typeof text !== 'string') {
+                const responseError = new TypeError('Response body must be text');
+                responseError.kind = 'response';
+                throw responseError;
+            }
+
+            if (text.trim() === '0') {
+                return [];
+            }
             
             // Enhanced JSON cleaning with multiple fallback methods
             let cleanText = text;
             
-            // Method 1: Find JSON array between [ and ]
-            const jsonStart = text.indexOf('[');
-            const jsonEnd = text.lastIndexOf(']');
+            // Method 1: Remove HTML tags and PHP warnings first (most robust)
+            cleanText = text
+                .replace(/<[^>]*>/g, '') // Remove all HTML tags
+                .replace(/Warning:[^\[\n]*/gi, '') // Remove Warning lines
+                .replace(/Notice:[^\[\n]*/gi, '') // Remove Notice lines
+                .replace(/Fatal error:[^\[\n]*/gi, '') // Remove Fatal error lines
+                .replace(/<br\s*\/?>/gi, '') // Remove <br> tags
+                .trim();
+            
+            // Check if cleaned text is just "0" (indicates no results)
+            if (cleanText === '0') {
+                console.log('SkinService: Server returned 0 after cleaning');
+                return [];
+            }
+            
+            // Method 2: Find JSON array between [ and ]
+            const jsonStart = cleanText.indexOf('[');
+            const jsonEnd = cleanText.lastIndexOf(']');
             
             if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-                cleanText = text.substring(jsonStart, jsonEnd + 1);
-                console.log('SkinService: Cleaned response using method 1');
+                cleanText = cleanText.substring(jsonStart, jsonEnd + 1);
+                console.log('SkinService: Cleaned response using method 2');
             } else {
-                // Method 2: Try to extract JSON using regex
-                const jsonMatch = text.match(/\[.*?\]/s);
+                // Method 3: Try to extract JSON using regex (fallback)
+                const jsonMatch = cleanText.match(/\[.*?\]/s);
                 if (jsonMatch) {
                     cleanText = jsonMatch[0];
-                    console.log('SkinService: Cleaned response using method 2');
-                } else {
-                    // Method 3: Remove all HTML tags and warning text, then try to find JSON
-                    cleanText = text
-                        .replace(/<[^>]*>/g, '') // Remove HTML tags
-                        .replace(/Warning:[^\[]*/gi, '') // Remove warning text before JSON
-                        .replace(/Notice:[^\[]*/gi, '') // Remove notice text before JSON
-                        .replace(/Fatal error:[^\[]*/gi, '') // Remove fatal error text before JSON
-                        .trim();
-                    
-                    // Try to find JSON in cleaned text
-                    const finalJsonMatch = cleanText.match(/\[.*?\]/s);
-                    if (finalJsonMatch) {
-                        cleanText = finalJsonMatch[0];
-                        console.log('SkinService: Cleaned response using method 3 (with regex)');
-                    } else {
-                        console.log('SkinService: Cleaned response using method 3 (final)');
-                    }
+                    console.log('SkinService: Cleaned response using method 3 (regex)');
                 }
             }
             
             // Final validation: ensure we have valid JSON content
             if (!cleanText || cleanText.trim() === '') {
                 console.warn('SkinService: No valid JSON content found after cleaning');
-                throw new Error('No valid JSON content found in server response');
+                const parseError = new Error('No valid JSON content found in server response');
+                parseError.kind = 'parse';
+                throw parseError;
             }
             
             if (!cleanText.startsWith('[') || !cleanText.endsWith(']')) {
                 console.warn('SkinService: Cleaned text does not appear to be valid JSON array');
-                throw new Error('Server response does not contain valid JSON array');
+                const parseError = new Error('Server response does not contain valid JSON array');
+                parseError.kind = 'parse';
+                throw parseError;
             }
             
             // Log for debugging
@@ -98,6 +125,19 @@ class SkinService {
                 return [];
             }
 
+            if (!Array.isArray(data)) {
+                const validationError = new TypeError('Server response must be an array of skins');
+                validationError.kind = 'validation';
+                throw validationError;
+            }
+
+            const invalidSkinIndex = data.findIndex(skin => !this.isValidSkin(skin));
+            if (invalidSkinIndex !== -1) {
+                const validationError = new TypeError(`Invalid skin record at index ${invalidSkinIndex}`);
+                validationError.kind = 'validation';
+                throw validationError;
+            }
+
             // Save to cache
             this.cache.set(cacheKey, {
                 data: Array.isArray(data) ? data : [],
@@ -106,8 +146,14 @@ class SkinService {
 
             return Array.isArray(data) ? data : [];
         } catch (error) {
-            console.error('Error fetching skins:', error);
-            throw new Error('Could not load skins');
+            const wrappedError = new Error('Could not load skins');
+            wrappedError.kind = error.kind || (error instanceof SyntaxError ? 'parse' : 'network');
+            wrappedError.cause = error;
+            if (error.status !== undefined) {
+                wrappedError.status = error.status;
+            }
+            console.error('Error fetching skins:', wrappedError);
+            throw wrappedError;
         }
     }
 
@@ -179,7 +225,8 @@ class SkinService {
      * @returns {string} - Image URL
      */
     getSkinImageUrl(skinId) {
-        return `${this.imageUrl}${skinId}.png`;
+        const encodedSkinId = skinId.split('/').map(segment => encodeURIComponent(segment)).join('/');
+        return `${this.imageUrl}${encodedSkinId}.png`;
     }
 
     /**
@@ -192,35 +239,48 @@ class SkinService {
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            const contextError = new Error('Canvas 2D context is unavailable');
+            contextError.kind = 'render';
+            throw contextError;
+        }
+
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.src = this.getSkinImageUrl(skinId);
 
         return new Promise((resolve, reject) => {
             img.onload = () => {
-                canvas.width = 16;
-                canvas.height = 22;
-                ctx.imageSmoothingEnabled = false;
-                ctx.drawImage(img, 0, 0, 16, 22, 0, 0, 16, 22);
-                
-                // Make background color transparent
-                const imgData = ctx.getImageData(0, 0, 16, 22);
-                const px = imgData.data;
-                const r = px[0], g = px[1], b = px[2];
-                
-                for (let i = 0; i < px.length; i += 4) {
-                    if (px[i] === r && px[i+1] === g && px[i+2] === b) {
-                        px[i+3] = 0;
+                try {
+                    canvas.width = 16;
+                    canvas.height = 22;
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.drawImage(img, 0, 0, 16, 22, 0, 0, 16, 22);
+
+                    const imgData = ctx.getImageData(0, 0, 16, 22);
+                    const px = imgData.data;
+                    const r = px[0], g = px[1], b = px[2];
+
+                    for (let i = 0; i < px.length; i += 4) {
+                        if (px[i] === r && px[i+1] === g && px[i+2] === b) {
+                            px[i+3] = 0;
+                        }
                     }
+
+                    ctx.putImageData(imgData, 0, 0);
+                    resolve();
+                } catch (error) {
+                    error.kind = 'render';
+                    reject(error);
                 }
-                
-                ctx.putImageData(imgData, 0, 0);
-                resolve();
             };
 
             img.onerror = () => {
                 console.error(`Error loading skin image: ${skinId}`);
-                reject(new Error(`Could not load skin image ${skinId}`));
+                const imageError = new Error(`Could not load skin image ${skinId}`);
+                imageError.name = 'ImageLoadError';
+                imageError.kind = 'image';
+                reject(imageError);
             };
         });
     }
